@@ -231,6 +231,69 @@ ipcMain.handle('shell:openTerminal', async (event, p) => {
     return { ok: true };
   } catch (e) { return { ok: false, error: e.message }; }
 });
+
+// ---------- In-app console (per-repo command runner + history) ----------
+const consoleHistFile = () => path.join(app.getPath('userData'), 'console-history.json');
+function readConsoleHist() {
+  try { return JSON.parse(fs.readFileSync(consoleHistFile(), 'utf8')); } catch { return {}; }
+}
+ipcMain.handle('console:historyRead', () => {
+  const all = readConsoleHist();
+  return { ok: true, data: (S.currentRepoPath && all[S.currentRepoPath]) || [] };
+});
+ipcMain.handle('console:historyWrite', (event, list) => {
+  try {
+    if (!S.currentRepoPath) return { ok: false };
+    const all = readConsoleHist();
+    all[S.currentRepoPath] = (Array.isArray(list) ? list : []).slice(-200);
+    fs.writeFileSync(consoleHistFile(), JSON.stringify(all));
+    return { ok: true };
+  } catch (e) { return { ok: false, error: e.message }; }
+});
+// Per-repo console output buffer (persisted, mirrors console-history.json)
+const consoleOutFile = () => path.join(app.getPath('userData'), 'console-output.json');
+function readConsoleOut() {
+  try { return JSON.parse(fs.readFileSync(consoleOutFile(), 'utf8')); } catch { return {}; }
+}
+ipcMain.handle('console:outputRead', () => {
+  const all = readConsoleOut();
+  return { ok: true, data: (S.currentRepoPath && all[S.currentRepoPath]) || [] };
+});
+ipcMain.handle('console:outputWrite', (event, lines) => {
+  try {
+    if (!S.currentRepoPath) return { ok: false };
+    const all = readConsoleOut();
+    all[S.currentRepoPath] = (Array.isArray(lines) ? lines : []).slice(-800);
+    fs.writeFileSync(consoleOutFile(), JSON.stringify(all));
+    return { ok: true };
+  } catch (e) { return { ok: false, error: e.message }; }
+});
+ipcMain.handle('console:exec', async (event, { cmd } = {}) => {
+  return await new Promise((resolve) => {
+    const dir = S.currentRepoPath;
+    if (!dir) return resolve({ ok: false, error: 'No repository open' });
+    if (!cmd || !cmd.trim()) return resolve({ ok: true, code: 0, out: '' });
+    const isWin = process.platform === 'win32';
+    const sh = isWin ? 'cmd.exe' : '/bin/sh';
+    const args = isWin ? ['/d', '/s', '/c', cmd] : ['-c', cmd];
+    let out = '', done = false;
+    let ps;
+    try { ps = spawn(sh, args, { cwd: dir, windowsHide: true }); }
+    catch (e) { return resolve({ ok: false, error: e.message }); }
+    const cap = (d) => { out += d.toString(); if (out.length > 200000) out = out.slice(-200000); };
+    ps.stdout.on('data', cap);
+    ps.stderr.on('data', cap);
+    const timer = setTimeout(() => {
+      if (done) return;
+      done = true;
+      try { ps.kill(); } catch {}
+      resolve({ ok: false, error: 'Command timed out after 60s', out });
+    }, 60000);
+    ps.on('error', (err) => { if (done) return; done = true; clearTimeout(timer); resolve({ ok: false, error: err.message, out }); });
+    ps.on('close', (code) => { if (done) return; done = true; clearTimeout(timer); resolve({ ok: true, code, out }); });
+  });
+});
+
 ipcMain.handle('shell:openInVSCode', async (event, p) => {
   try {
     const dir = p || S.currentRepoPath;

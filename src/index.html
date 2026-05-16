@@ -246,6 +246,30 @@
         <div class="gh-col gh-col-hash">SHA</div>
       </div>
       <div class="graph-body" id="graph-body"></div>
+      <div class="history-console hidden" id="history-console">
+        <div class="hc-bar">
+          <span class="hc-title">CONSOLE</span>
+          <span class="hc-cwd" id="hc-cwd"></span>
+          <button class="hc-btn" id="hc-clear" title="Clear output">Clear</button>
+          <button class="hc-btn" id="hc-close" title="Hide console">✕</button>
+        </div>
+        <div class="hc-helper" id="hc-helper">
+          <button class="hc-chip" data-cmd="git status">status</button>
+          <button class="hc-chip" data-cmd="git log --oneline -20">log</button>
+          <button class="hc-chip" data-cmd="git fetch --all --prune">fetch</button>
+          <button class="hc-chip" data-cmd="git branch -a">branches</button>
+          <button class="hc-chip" data-cmd="git pull">pull</button>
+          <button class="hc-chip" data-cmd="git push">push</button>
+          <button class="hc-chip" data-cmd="git diff">diff</button>
+          <button class="hc-chip" data-cmd="git stash list">stashes</button>
+        </div>
+        <div class="hc-output" id="hc-output"></div>
+        <div class="hc-input-row">
+          <span class="hc-prompt">$</span>
+          <input id="hc-input" class="hc-input" autocomplete="off" spellcheck="false"
+                 placeholder="Run a command in this repo… (↑/↓ history, 'clear' to wipe)" />
+        </div>
+      </div>
     </div>
 
     <!-- FILES TAB -->

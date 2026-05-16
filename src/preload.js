@@ -105,6 +105,13 @@ contextBridge.exposeInMainWorld('api', {
   openTerminal: (p) => ipcRenderer.invoke('shell:openTerminal', p),
   openInVSCode: (p) => ipcRenderer.invoke('shell:openInVSCode', p),
 
+  // in-app console
+  consoleExec: (args) => ipcRenderer.invoke('console:exec', args),
+  consoleHistoryRead: () => ipcRenderer.invoke('console:historyRead'),
+  consoleHistoryWrite: (list) => ipcRenderer.invoke('console:historyWrite', list),
+  consoleOutputRead: () => ipcRenderer.invoke('console:outputRead'),
+  consoleOutputWrite: (lines) => ipcRenderer.invoke('console:outputWrite', lines),
+
   // clipboard
   copy: (text) => ipcRenderer.invoke('clipboard:write', text),
 

@@ -260,16 +260,26 @@ $('#reword-last-btn')?.addEventListener('click', async () => {
 });
 
 // ─────────────────────── Sidebar filters ───────────────────────
+function _filterBranchTree(sel, term) {
+  const root = $(sel);
+  if (!root) return;
+  const has = !!term;
+  $$('.sidebar-list-item', root).forEach(el => {
+    el.style.display = !term || el.dataset.branch?.toLowerCase().includes(term) ? '' : 'none';
+  });
+  // deepest folders first so parent visibility can depend on children
+  const folders = $$('.branch-folder', root);
+  for (let i = folders.length - 1; i >= 0; i--) {
+    const f = folders[i];
+    f.classList.toggle('force-open', has);            // reveal matches in collapsed folders
+    const anyVisible = $$('.sidebar-list-item', f).some(el => el.style.display !== 'none');
+    f.style.display = (!has || anyVisible) ? '' : 'none';
+  }
+}
 function applySidebarFilters() {
-  const lf = ($('#filter-local')?.value || '').toLowerCase();
-  const rf = ($('#filter-remote')?.value || '').toLowerCase();
+  _filterBranchTree('#branches-local', ($('#filter-local')?.value || '').toLowerCase());
+  _filterBranchTree('#branches-remote', ($('#filter-remote')?.value || '').toLowerCase());
   const tf = ($('#filter-tags')?.value || '').toLowerCase();
-  $$('#branches-local .sidebar-list-item').forEach(el => {
-    el.style.display = !lf || el.dataset.branch?.toLowerCase().includes(lf) ? '' : 'none';
-  });
-  $$('#branches-remote .sidebar-list-item').forEach(el => {
-    el.style.display = !rf || el.dataset.branch?.toLowerCase().includes(rf) ? '' : 'none';
-  });
   $$('#tags-list .sidebar-list-item').forEach(el => {
     el.style.display = !tf || el.dataset.tag?.toLowerCase().includes(tf) ? '' : 'none';
   });
@@ -574,7 +584,7 @@ function openCommandPalette() {
     { id: 'settings', label: 'Settings',                  icon: '⚙', action: openSettingsModal },
     { id: 'help',     label: 'Help / shortcuts',          icon: '?', action: openHelpModal },
     { id: 'explorer', label: 'Open in file explorer',     icon: '📁', action: () => $('#btn-open-folder').click() },
-    { id: 'terminal', label: 'Open terminal here',        icon: '▶_', action: () => $('#btn-open-terminal').click() },
+    { id: 'terminal', label: 'Toggle console',            icon: '▶_', action: () => toggleConsole() },
     { id: 'vscode',   label: 'Open in VS Code',           icon: '⌘', action: () => $('#btn-open-vscode').click() },
     { id: 'history',  label: 'Show History',              icon: '⌖', action: () => switchCenterTab('history') },
     { id: 'changes',  label: 'Show Changes',              icon: '✎', action: () => switchRightTab('changes') },
@@ -640,3 +650,169 @@ function closeCommandPalette() {
   _palette.remove();
   _palette = null;
 }
+
+// ─────────────────────── Docked console (per-repo) ───────────────────────
+let _consoleWired = false;
+let _consoleHist = [];
+let _consoleHi = 0;
+let _consoleLines = [];      // per-repo output buffer: { text, cls }[]
+let _consoleSaveTimer = null;
+
+function _consoleSave() {
+  if (_consoleSaveTimer) clearTimeout(_consoleSaveTimer);
+  _consoleSaveTimer = setTimeout(() => {
+    _consoleSaveTimer = null;
+    try { window.api.consoleOutputWrite(_consoleLines); } catch {}
+  }, 300);
+}
+
+function _consoleAppendLine(text, cls) {
+  const out = $('#hc-output');
+  if (!out) return;
+  const div = document.createElement('div');
+  div.className = 'hc-line' + (cls ? ' ' + cls : '');
+  div.textContent = text;
+  out.appendChild(div);
+  out.scrollTop = out.scrollHeight;
+}
+
+function _consolePrint(text, cls) {
+  _consoleLines.push({ text, cls: cls || '' });
+  if (_consoleLines.length > 800) _consoleLines = _consoleLines.slice(-800);
+  _consoleAppendLine(text, cls);
+  _consoleSave();
+}
+
+function _consoleClear() {
+  const out = $('#hc-output');
+  if (out) out.innerHTML = '';
+  _consoleLines = [];
+  _consoleSave();
+}
+
+// Reload the console buffer + command history for the active repo and rebuild
+// the output DOM. Safe to call when the panel is hidden.
+async function loadConsoleForRepo() {
+  try {
+    const h = await window.api.consoleHistoryRead();
+    _consoleHist = (h && h.data) || [];
+  } catch { _consoleHist = []; }
+  _consoleHi = _consoleHist.length;
+  try {
+    const o = await window.api.consoleOutputRead();
+    _consoleLines = (o && Array.isArray(o.data)) ? o.data : [];
+  } catch { _consoleLines = []; }
+  const out = $('#hc-output');
+  if (out) {
+    out.innerHTML = '';
+    for (const ln of _consoleLines) _consoleAppendLine(ln.text, ln.cls);
+    out.scrollTop = out.scrollHeight;
+  }
+}
+
+function wireConsole() {
+  if (_consoleWired) return;
+  _consoleWired = true;
+  const input = $('#hc-input');
+  const out = $('#hc-output');
+  if (!input || !out) { _consoleWired = false; return; }
+
+  $('#hc-clear').onclick = () => { _consoleClear(); input.focus(); };
+  $('#hc-close').onclick = () => toggleConsole(false);
+
+  // Command helper chips: click inserts the command into the input.
+  $$('#hc-helper .hc-chip').forEach(c => {
+    c.onclick = () => { input.value = c.dataset.cmd || ''; input.focus(); };
+  });
+
+  input.addEventListener('keydown', async (e) => {
+    if (e.key === 'Enter') {
+      const cmd = input.value.trim();
+      if (!cmd) return;
+      input.value = '';
+      if (cmd === 'clear' || cmd === 'cls') { _consoleClear(); return; }
+      _consolePrint('$ ' + cmd, 'hc-cmd');
+      _consoleHist = _consoleHist.filter(c => c !== cmd);
+      _consoleHist.push(cmd);
+      _consoleHist = _consoleHist.slice(-200);
+      _consoleHi = _consoleHist.length;
+      try { window.api.consoleHistoryWrite(_consoleHist); } catch {}
+      input.disabled = true;
+      let r;
+      try { r = await window.api.consoleExec({ cmd }); }
+      catch (err) { r = { ok: false, error: String(err) }; }
+      input.disabled = false;
+      input.focus();
+      if (r.out) _consolePrint(String(r.out).replace(/\s+$/, ''));
+      if (!r.ok) _consolePrint(r.error || 'command failed', 'hc-err');
+      else if (r.code) _consolePrint('[exit ' + r.code + ']', 'hc-err');
+    } else if (e.key === 'ArrowUp') {
+      if (_consoleHist.length && _consoleHi > 0) {
+        _consoleHi--;
+        input.value = _consoleHist[_consoleHi];
+        e.preventDefault();
+      }
+    } else if (e.key === 'ArrowDown') {
+      if (_consoleHi < _consoleHist.length - 1) {
+        _consoleHi++;
+        input.value = _consoleHist[_consoleHi];
+      } else {
+        _consoleHi = _consoleHist.length;
+        input.value = '';
+      }
+      e.preventDefault();
+    }
+  });
+}
+
+// Keep the console header (cwd + active branch) in sync. Called on open and
+// from renderCenterHeader so swapping branches updates the console view.
+function renderConsoleCwd() {
+  const el = $('#hc-cwd');
+  if (!el) return;
+  const path = state.repo?.path || '';
+  const branch = state.status?.current || '';
+  el.textContent = branch ? `${path}  ⎇ ${branch}` : path;
+}
+
+async function toggleConsole(force) {
+  const panel = $('#history-console');
+  if (!panel) return;
+  if (!state.repo) { toast('Open a repository first', 'warn'); return; }
+  const show = force === undefined ? panel.classList.contains('hidden') : force;
+  if (!show) { panel.classList.add('hidden'); return; }
+
+  switchCenterTab('history');
+  panel.classList.remove('hidden');
+  wireConsole();
+  renderConsoleCwd();
+  // command history + output buffer are stored per-repo in the main process
+  await loadConsoleForRepo();
+  setTimeout(() => $('#hc-input')?.focus(), 0);
+}
+
+// Repurpose the old "open terminal here" titlebar button as the console toggle.
+// 06 loads after 05 (which set the original handler), so this wins.
+(function repurposeTerminalButton() {
+  const btn = $('#btn-open-terminal');
+  if (!btn) return;
+  btn.title = 'Toggle console (runs in this repo)';
+  btn.onclick = () => toggleConsole();
+})();
+
+// Swap the console buffer when switching repo tabs so each repo keeps its own
+// output + command history (same wrapping convention as 12-loading-init.js).
+const _origActivateRepoTab_console = activateRepoTab;
+activateRepoTab = async function (idx) {
+  await _origActivateRepoTab_console(idx);
+  const panel = $('#history-console');
+  if (_consoleWired || (panel && !panel.classList.contains('hidden'))) {
+    await loadConsoleForRepo();
+  } else {
+    _consoleLines = [];
+    _consoleHist = [];
+    _consoleHi = 0;
+    const o = $('#hc-output');
+    if (o) o.innerHTML = '';
+  }
+};

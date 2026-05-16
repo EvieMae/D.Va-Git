@@ -84,6 +84,7 @@ function renderStatusBar() {
 function renderCenterHeader() {
   const b = state.status?.current || 'none';
   $('#current-branch-pill').textContent = '⎇ ' + b;
+  if (typeof renderConsoleCwd === 'function') renderConsoleCwd();
 
   const ahead = state.status?.ahead || 0;
   const behind = state.status?.behind || 0;
@@ -105,6 +106,53 @@ function renderCenterHeader() {
     fp.innerHTML = '';
     fp.onclick = null;
   }
+}
+
+// Split "feature/x/y" style names into a nested folder tree.
+function _branchTree(items, keyOf) {
+  const root = { dirs: new Map(), leaves: [] };
+  for (const it of items) {
+    const parts = String(keyOf(it)).split('/');
+    let node = root;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const seg = parts[i];
+      if (!node.dirs.has(seg)) node.dirs.set(seg, { dirs: new Map(), leaves: [] });
+      node = node.dirs.get(seg);
+    }
+    node.leaves.push({ item: it, label: parts[parts.length - 1] });
+  }
+  return root;
+}
+function _renderBranchNodes(node, pathPrefix, depth, leafHtml) {
+  const collapsed = state.collapsedBranchFolders || (state.collapsedBranchFolders = new Set());
+  let html = '';
+  for (const seg of [...node.dirs.keys()].sort((a, b) => a.localeCompare(b))) {
+    const fpath = pathPrefix ? pathPrefix + '/' + seg : seg;
+    const isCol = collapsed.has(fpath);
+    const pad = 8 + depth * 12;
+    html += `<div class="branch-folder ${isCol ? 'collapsed' : ''}" data-folder="${escapeHtml(fpath)}">
+      <div class="branch-folder-header" data-folder="${escapeHtml(fpath)}" style="padding-left:${pad}px">
+        <span class="bf-twirl">▾</span><span class="bf-icon">📁</span><span class="bf-name">${escapeHtml(seg)}</span>
+      </div>
+      <div class="branch-folder-children">${_renderBranchNodes(node.dirs.get(seg), fpath, depth + 1, leafHtml)}</div>
+    </div>`;
+  }
+  for (const leaf of node.leaves.sort((a, b) => a.label.localeCompare(b.label))) {
+    html += leafHtml(leaf.item, leaf.label, depth);
+  }
+  return html;
+}
+function _wireBranchFolders(cont) {
+  $$('.branch-folder-header', cont).forEach(h => {
+    h.onclick = (e) => {
+      e.stopPropagation();
+      const fp = h.dataset.folder;
+      const set = state.collapsedBranchFolders || (state.collapsedBranchFolders = new Set());
+      const folder = h.closest('.branch-folder');
+      if (set.has(fp)) { set.delete(fp); folder.classList.remove('collapsed'); }
+      else { set.add(fp); folder.classList.add('collapsed'); }
+    };
+  });
 }
 
 function renderSidebarBranches() {
@@ -135,16 +183,19 @@ function renderSidebarBranches() {
     if (t.behind) parts.push(`<span class="btb-down">↓${t.behind}</span>`);
     return `<span class="branch-track-badge" title="${t.ahead}↑ / ${t.behind}↓ vs ${escapeHtml(t.upstream)}">${parts.join(' ')}</span>`;
   };
-  cont.innerHTML = branches.map(b => `
-    <div class="sidebar-list-item ${b.current ? 'current active' : ''} ${state.historyBranchFilter === b.name ? 'active' : ''}"
+  const leafLocal = (b, label, depth) => {
+    const pad = 8 + depth * 12 + 14;
+    return `<div class="sidebar-list-item ${b.current ? 'current active' : ''} ${state.historyBranchFilter === b.name ? 'active' : ''}"
          data-branch="${escapeHtml(b.name)}"
          data-source="local"
-         draggable="true">
+         draggable="true" style="padding-left:${pad}px">
       <span class="branch-icon">⎇</span>
-      <span class="si-label">${escapeHtml(b.name)}</span>
+      <span class="si-label" title="${escapeHtml(b.name)}">${escapeHtml(label)}</span>
       ${badgeHtml(b.name)}
-    </div>
-  `).join('');
+    </div>`;
+  };
+  cont.innerHTML = _renderBranchNodes(_branchTree(branches, b => b.name), '', 0, leafLocal);
+  _wireBranchFolders(cont);
   $$('#branches-local .sidebar-list-item').forEach(el => {
     el.onclick = (e) => {
       if (e.detail === 2) return; // double-click handled separately
@@ -184,17 +235,19 @@ function renderSidebarRemotes() {
   cont.innerHTML = Array.from(groups.entries()).map(([remoteName, branches]) => {
     const remoteInfo = state.remotes.find(r => r.name === remoteName);
     const url = remoteInfo?.refs?.fetch || remoteInfo?.refs?.push || '';
-    const branchesHtml = branches.length
-      ? branches.map(b => `
-          <div class="sidebar-list-item ${state.historyBranchFilter === b.full ? 'active' : ''}"
+    const leafRemote = (b, label, depth) => {
+      const pad = 8 + depth * 12 + 14;
+      return `<div class="sidebar-list-item ${state.historyBranchFilter === b.full ? 'active' : ''}"
                data-branch="${escapeHtml(b.full)}"
                data-remote-branch="true"
                data-source="remote"
-               draggable="true">
+               draggable="true" style="padding-left:${pad}px">
             <span class="branch-icon">☁</span>
-            <span class="si-label">${escapeHtml(b.branchPart)}</span>
-          </div>
-        `).join('')
+            <span class="si-label" title="${escapeHtml(b.full)}">${escapeHtml(label)}</span>
+          </div>`;
+    };
+    const branchesHtml = branches.length
+      ? _renderBranchNodes(_branchTree(branches, b => b.branchPart), `__r/${remoteName}`, 0, leafRemote)
       : '<div class="sidebar-empty">— no remote branches —</div>';
     return `
       <div class="remote-group" data-remote="${escapeHtml(remoteName)}">
@@ -207,6 +260,7 @@ function renderSidebarRemotes() {
     `;
   }).join('');
 
+  _wireBranchFolders(cont);
   $$('#branches-remote .sidebar-list-item[data-remote-branch="true"]').forEach(el => {
     el.onclick = () => filterHistoryBy(el.dataset.branch);
     el.ondblclick = async () => {
