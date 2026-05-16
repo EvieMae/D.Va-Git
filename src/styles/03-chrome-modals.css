@@ -137,6 +137,15 @@
   border-radius: 2px;
 }
 .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+/* Add-repository source selector */
+.addrepo-seg .addrepo-tab { margin-left: 0; flex: 1; }
+.addrepo-seg .addrepo-tab + .addrepo-tab { margin-left: 0; }
+.addrepo-tab.active {
+  background: var(--pink);
+  color: #fff;
+  border-color: var(--pink);
+}
+.addrepo-gh-row:hover { background: var(--line); }
 .modal-body label {
   display: block;
   font-size: 11px;

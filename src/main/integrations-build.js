@@ -33,6 +33,105 @@ ipcMain.handle('integrations:write', (event, data) => {
   } catch (e) { return { ok: false, error: e.message }; }
 });
 
+// ---------- GitHub: OAuth Device Flow login (no client secret needed) ----------
+// Registered GitHub OAuth App client ID. Not a secret — embedded in distributed apps.
+const GITHUB_CLIENT_ID = 'Ov23li7GhyONJ3I3MfS5';
+const GITHUB_SCOPE = 'repo read:user';
+
+// Step 1: request a device + user code. Renderer shows user_code, opens verification_uri.
+ipcMain.handle('github:deviceStart', async () => {
+  try {
+    const r = await fetch('https://github.com/login/device/code', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: GITHUB_CLIENT_ID, scope: GITHUB_SCOPE }),
+    });
+    const txt = await r.text();
+    let d; try { d = JSON.parse(txt); } catch { d = null; }
+    if (!r.ok || !d || !d.device_code) {
+      throw new Error(`GitHub device code request failed (${r.status}): ${txt.slice(0, 200)}`);
+    }
+    return {
+      ok: true,
+      deviceCode: d.device_code,
+      userCode: d.user_code,
+      verificationUri: d.verification_uri,
+      interval: d.interval || 5,
+      expiresIn: d.expires_in || 900,
+    };
+  } catch (e) { return { ok: false, error: e.message }; }
+});
+
+// Step 2: poll once for the access token. Renderer drives the polling loop.
+// Returns { pending:true } until the user authorizes, then { ok:true, token, username }.
+ipcMain.handle('github:devicePoll', async (event, { deviceCode }) => {
+  try {
+    if (!deviceCode) throw new Error('No device code');
+    const r = await fetch('https://github.com/login/oauth/access_token', {
+      method: 'POST',
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id: GITHUB_CLIENT_ID,
+        device_code: deviceCode,
+        grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+      }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (d.error === 'authorization_pending') return { ok: false, pending: true };
+    if (d.error === 'slow_down') return { ok: false, pending: true, slowDown: d.interval || 5 };
+    if (d.error === 'expired_token') return { ok: false, error: 'Code expired — start over.' };
+    if (d.error === 'access_denied') return { ok: false, error: 'Authorization was denied.' };
+    if (d.error || !d.access_token) {
+      return { ok: false, error: d.error_description || d.error || 'Unknown GitHub error' };
+    }
+    const token = d.access_token;
+    // Resolve the username so the integration entry auto-fills.
+    let username = '';
+    try {
+      const ur = await fetch('https://api.github.com/user', {
+        headers: { 'Authorization': `Bearer ${token}`, 'Accept': 'application/vnd.github+json' },
+      });
+      if (ur.ok) { const u = await ur.json(); username = u.login || ''; }
+    } catch {}
+    return { ok: true, token, username };
+  } catch (e) { return { ok: false, error: e.message }; }
+});
+
+// List repositories the connected GitHub account can clone, using a saved
+// integration token (host github.com). Returns newest-updated first.
+ipcMain.handle('github:listRepos', async () => {
+  try {
+    const integ = core.loadIntegrations()
+      .find(i => i.token && (i.type === 'github' || String(i.host).toLowerCase() === 'github.com'));
+    if (!integ) return { ok: false, error: 'No GitHub integration with a token. Add one in Settings → Integrations.' };
+    const repos = [];
+    for (let page = 1; page <= 5; page++) {
+      const r = await fetch(
+        `https://api.github.com/user/repos?per_page=100&page=${page}&sort=updated&affiliation=owner,collaborator,organization_member`,
+        { headers: { 'Authorization': `Bearer ${integ.token}`, 'Accept': 'application/vnd.github+json' } }
+      );
+      if (!r.ok) {
+        const txt = await r.text().catch(() => '');
+        if (r.status === 401) throw new Error('GitHub token rejected (401) — re-login in Settings → Integrations.');
+        throw new Error(`GitHub API ${r.status}: ${txt.slice(0, 200)}`);
+      }
+      const batch = await r.json();
+      if (!Array.isArray(batch) || batch.length === 0) break;
+      for (const x of batch) {
+        repos.push({
+          fullName: x.full_name,
+          cloneUrl: x.clone_url,
+          private: !!x.private,
+          description: x.description || '',
+          updatedAt: x.updated_at,
+        });
+      }
+      if (batch.length < 100) break;
+    }
+    return { ok: true, repos, account: integ.username || '' };
+  } catch (e) { return { ok: false, error: e.message }; }
+});
+
 // ---------- Discord: fetch user via bot token ----------
 ipcMain.handle('discord:fetchUser', async (event, { token, userId }) => {
   try {

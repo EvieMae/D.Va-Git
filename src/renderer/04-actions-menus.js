@@ -161,6 +161,7 @@ function branchContextMenu(branch, x, y) {
       if (r.ok) { toast(`Rebased onto ${branch}`, 'ok'); await refreshAll(); }
       else toast(r.error, 'error');
     } },
+    { label: 'Rename...', icon: '✎', action: () => openRenameBranchModal(branch) },
     { separator: true },
     { label: 'Push branch', icon: '↑', action: async () => {
       const r = await window.api.push({ remote: state.settings.defaultRemote, branch });
@@ -175,6 +176,24 @@ function branchContextMenu(branch, x, y) {
     } },
   ];
   showContextMenu(x, y, items);
+}
+
+function openRenameBranchModal(branch) {
+  modal({
+    title: `RENAME BRANCH — ${branch}`,
+    body: `
+      <label>NEW NAME</label>
+      <input id="modal-branch-newname" value="${escapeHtml(branch)}" />
+    `,
+    okText: 'RENAME',
+    onOk: async () => {
+      const to = $('#modal-branch-newname').value.trim();
+      if (!to || to === branch) return false;
+      const r = await window.api.renameBranch({ from: branch, to });
+      if (r.ok) { toast(`Renamed to ${to}`, 'ok'); await refreshAll(); }
+      else { toast(r.error, 'error'); return false; }
+    },
+  });
 }
 
 function remoteBranchContextMenu(branch, x, y) {

@@ -24,6 +24,16 @@ ipcMain.handle('repo:pickFolder', async () => {
   return result.filePaths[0];
 });
 
+// Pick a parent directory to clone into (repo folder is created inside it).
+ipcMain.handle('repo:pickCloneDir', async () => {
+  const result = await dialog.showOpenDialog(S.mainWindow, {
+    properties: ['openDirectory', 'createDirectory'],
+    title: 'Choose where to clone',
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  return result.filePaths[0];
+});
+
 ipcMain.handle('repo:open', async (event, repoPath) => {
   if (!repoPath || !fs.existsSync(repoPath)) {
     return { ok: false, error: 'Path does not exist' };
@@ -56,17 +66,53 @@ ipcMain.handle('repo:init', async (event, repoPath) => {
   }
 });
 
-ipcMain.handle('repo:clone', async (event, { url, dest }) => {
+ipcMain.handle('repo:clone', async (event, { url, dest, parentDir, username, token } = {}) => {
+  // never let a token leak into UI/log via a git error that echoes the URL
+  const scrub = (s) => String(s || '').replace(/\/\/[^/@\s]+(?::[^/@\s]+)?@/g, '//');
   try {
-    const finalDest = dest || path.join(os.homedir(), 'dvagit-clones', path.basename(url, '.git'));
+    if (!url) throw new Error('Remote URL required');
+    const repoName = path.basename(url.replace(/\.git$/i, ''));
+    const finalDest = dest
+      || (parentDir ? path.join(parentDir, repoName) : path.join(os.homedir(), 'dvagit-clones', repoName));
     fs.mkdirSync(path.dirname(finalDest), { recursive: true });
-    await simpleGit().clone(url, finalDest);
-    S.git = simpleGit(finalDest);
+
+    const isHttps = /^https?:\/\//i.test(url);
+    let user = username, tok = token, cloneUrl = url, cleanUrl = url;
+
+    if (isHttps) {
+      // no explicit token? fall back to a saved integration for the same host
+      if (!tok) {
+        try {
+          const host = new URL(url).host.toLowerCase();
+          const integ = core.loadIntegrations()
+            .find(i => i.token && i.host && String(i.host).toLowerCase() === host);
+          if (integ) { tok = integ.token; user = user || integ.username; }
+        } catch {}
+      }
+      if (tok) {
+        const u = new URL(url);
+        u.username = ''; u.password = '';
+        cleanUrl = u.toString();
+        // GitHub/GitLab accept token-as-password; default user keeps it generic
+        u.username = encodeURIComponent(user || 'x-access-token');
+        u.password = encodeURIComponent(tok);
+        cloneUrl = u.toString();
+      }
+    }
+
+    await simpleGit().clone(cloneUrl, finalDest);
+    const g = simpleGit(finalDest);
+    // strip credentials back out of .git/config so the token isn't persisted;
+    // 'origin' is git's default remote name, which is what we want.
+    if (cloneUrl !== cleanUrl) {
+      try { await g.remote(['set-url', 'origin', cleanUrl]); } catch {}
+    }
+    S.git = g;
     S.currentRepoPath = finalDest;
     core.addRecentRepo(finalDest);
     return { ok: true, path: finalDest, name: path.basename(finalDest) };
   } catch (e) {
-    return { ok: false, error: e.message };
+    return { ok: false, error: scrub(e.message) };
   }
 });
 
@@ -242,6 +288,14 @@ ipcMain.handle('git:deleteBranch', async (event, { name, force }) => {
   try {
     const g = core.requireRepo();
     await g.deleteLocalBranch(name, !!force);
+    return { ok: true };
+  } catch (e) { return { ok: false, error: e.message }; }
+});
+
+ipcMain.handle('git:renameBranch', async (event, { from, to }) => {
+  try {
+    const g = core.requireRepo();
+    await g.branch(['-m', from, to]); // git branch -m <old> <new> (works for current too)
     return { ok: true };
   } catch (e) { return { ok: false, error: e.message }; }
 });

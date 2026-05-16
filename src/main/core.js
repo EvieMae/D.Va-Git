@@ -136,6 +136,18 @@ function decryptToken(stored) {
   return stored;
 }
 
+// saved provider integrations (host/username/token), tokens decrypted.
+// used by clone to auto-authenticate against a matching host.
+function integrationsFile() { return path.join(app.getPath('userData'), 'integrations.json'); }
+function loadIntegrations() {
+  try {
+    const f = integrationsFile();
+    if (!fs.existsSync(f)) return [];
+    const raw = JSON.parse(fs.readFileSync(f, 'utf8'));
+    return (raw.integrations || []).map(i => ({ ...i, token: decryptToken(i.token || '') }));
+  } catch { return []; }
+}
+
 module.exports = {
   S,
   recentReposFile, loadRecentRepos, saveRecentRepos, addRecentRepo,
@@ -143,4 +155,5 @@ module.exports = {
   requireRepo, plain,
   LOG_SEP, LOG_REC, LOG_FMT, parseRawLog,
   buildTreeFromPaths, encryptToken, decryptToken,
+  integrationsFile, loadIntegrations,
 };

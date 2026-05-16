@@ -438,6 +438,11 @@ function openIntegrationEditor(idx) {
       <p style="font-size: 11px; color: var(--text-3);">For self-hosted GitLab, enter your instance host (e.g. <code>gitlab.example.com</code>). For SaaS providers, leave blank for the default.</p>
       <label>USERNAME (optional, for display)</label>
       <input id="integ-username" value="${escapeHtml(existing.username || '')}"/>
+      <div id="integ-gh-login" style="display: ${existing.type === 'github' ? 'block' : 'none'}; margin-bottom: 8px;">
+        <button class="csh-action" id="integ-gh-btn">⎔ Login with GitHub</button>
+        <span id="integ-gh-status" style="font-size: 11px; color: var(--text-3); margin-left: 8px;"></span>
+        <p style="font-size: 11px; color: var(--text-3); margin-top: 4px;">Authorize in your browser — no token to paste. Or enter one manually below.</p>
+      </div>
       <label>PERSONAL ACCESS TOKEN</label>
       <input id="integ-token" type="password" value="${escapeHtml(existing.token || '')}" placeholder="paste a token (scope: read repo / read user)"/>
       <p style="font-size: 11px; color: var(--text-3); margin-top: 4px;">
@@ -464,12 +469,65 @@ function openIntegrationEditor(idx) {
       toast('Integration saved', 'ok');
     },
   });
-  // Live-update host placeholder when type changes
+  // Live-update host placeholder when type changes; show GitHub login only for github
   $('#integ-type').onchange = () => {
     const t = $('#integ-type').value;
     const hostEl = $('#integ-host');
     if (!hostEl.value) hostEl.placeholder = _integDefaultHost(t) || 'gitlab.example.com';
+    const gh = $('#integ-gh-login');
+    if (gh) gh.style.display = t === 'github' ? 'block' : 'none';
   };
+  // GitHub OAuth Device Flow login — fills token + username on success
+  const ghBtn = $('#integ-gh-btn');
+  if (ghBtn) ghBtn.onclick = () => _githubDeviceLogin(ghBtn);
+}
+
+let _ghLoginBusy = false;
+async function _githubDeviceLogin(btn) {
+  if (_ghLoginBusy) return;
+  const statusEl = $('#integ-gh-status');
+  const setStat = (html) => { if ($('#integ-gh-status')) $('#integ-gh-status').innerHTML = html; };
+  _ghLoginBusy = true;
+  btn.disabled = true;
+  setStat('Requesting code…');
+  try {
+    const start = await window.api.githubDeviceStart();
+    if (!start || !start.ok) { throw new Error(start?.error || 'Could not start GitHub login'); }
+
+    try { await window.api.copy(start.userCode); } catch {}
+    try { await window.api.openExternal(start.verificationUri); } catch {}
+    setStat(`Enter code <strong style="color: var(--text-1); letter-spacing: 1px;">${escapeHtml(start.userCode)}</strong> at ${escapeHtml(start.verificationUri)} (copied) — waiting…`);
+
+    let interval = (start.interval || 5) * 1000;
+    const deadline = Date.now() + (start.expiresIn || 900) * 1000;
+    // Poll until authorized, expired, or the editor modal closed.
+    while (Date.now() < deadline) {
+      await new Promise(r => setTimeout(r, interval));
+      if (!$('#integ-token')) { _ghLoginBusy = false; return; } // editor closed — abort silently
+      const res = await window.api.githubDevicePoll({ deviceCode: start.deviceCode });
+      if (res && res.ok) {
+        $('#integ-token').value = res.token;
+        if (res.username && !$('#integ-username').value) $('#integ-username').value = res.username;
+        setStat(`<span style="color: var(--ok, #6ee7b7);">✓ Logged in${res.username ? ' as ' + escapeHtml(res.username) : ''} — click SAVE</span>`);
+        toast('GitHub login successful', 'ok');
+        _ghLoginBusy = false;
+        btn.disabled = false;
+        return;
+      }
+      if (res && res.pending) {
+        if (res.slowDown) interval = res.slowDown * 1000;
+        continue;
+      }
+      throw new Error(res?.error || 'GitHub login failed');
+    }
+    throw new Error('Login timed out — try again');
+  } catch (e) {
+    setStat(`<span style="color: var(--danger, #f87171);">${escapeHtml(e.message)}</span>`);
+    toast(e.message, 'error');
+  } finally {
+    _ghLoginBusy = false;
+    if (btn) btn.disabled = false;
+  }
 }
 
 // Wire Settings to also expose Integrations

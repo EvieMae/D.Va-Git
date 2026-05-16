@@ -434,15 +434,26 @@ $('#welcome-clone').onclick = () => {
       <input id="modal-clone-url" placeholder="https://github.com/user/repo.git" />
       <label>DESTINATION (optional)</label>
       <input id="modal-clone-dest" placeholder="Leave blank for default" />
+      <label>USERNAME (optional)</label>
+      <input id="modal-clone-user" placeholder="for private HTTPS repos" />
+      <label>TOKEN / PASSWORD (optional)</label>
+      <input id="modal-clone-token" type="password" placeholder="leave blank to use a saved integration" />
+      <div style="font-size:11px;color:var(--text-3);margin-top:6px;">
+        Private repo? Provide a personal access token, or save one in
+        Settings → Integrations for this host and it'll be used automatically.
+        Credentials are used only for the clone and never stored in the repo.
+      </div>
     `,
     okText: 'CLONE',
     onOk: async () => {
       const url = $('#modal-clone-url').value.trim();
       const dest = $('#modal-clone-dest').value.trim();
+      const username = $('#modal-clone-user').value.trim();
+      const token = $('#modal-clone-token').value.trim();
       if (!url) { toast('URL required', 'error'); return false; }
       setStatus('Cloning...', 'busy');
       toast('Cloning... this may take a minute', 'ok', 6000);
-      const r = await window.api.cloneRepo({ url, dest: dest || null });
+      const r = await window.api.cloneRepo({ url, dest: dest || null, username: username || null, token: token || null });
       if (r.ok) {
         toast('Cloned successfully!', 'ok');
         await enterRepo(r);
@@ -527,6 +538,10 @@ async function activateRepoTab(idx) {
     state.repo = r;
     renderRepoTabs();
 
+    $('#welcome').classList.add('hidden');
+    $('#app').classList.remove('hidden');
+    $('#repo-tabs').classList.remove('hidden');
+
     state.selectedCommit = null;
     state.selectedFile = null;
     state.editorFile = null;
@@ -597,7 +612,162 @@ function renderRepoTabs() {
   });
 }
 
-$('#repo-tab-add').onclick = async () => {
-  const p = await window.api.pickFolder();
-  if (p) await openRepoPath(p);
-};
+// Unified "Add repository" modal — choose a source: a connected GitHub
+// account, any clone URL, or a local folder. GitHub/URL clones reuse saved
+// integration tokens automatically (matched by host in the main process).
+function openAddRepoModal() {
+  const m = modal({
+    title: 'ADD REPOSITORY',
+    cancelText: 'Close',
+    hideOk: true,
+    body: `
+      <div class="addrepo-seg" style="display:flex;gap:6px;margin-bottom:12px;">
+        <button class="csh-action addrepo-tab" data-src="github">From GitHub</button>
+        <button class="csh-action addrepo-tab" data-src="url">Clone URL</button>
+        <button class="csh-action addrepo-tab" data-src="local">Local folder</button>
+      </div>
+      <div id="addrepo-loc" style="display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:11px;">
+        <span style="color:var(--text-3);">Clone into:</span>
+        <span id="addrepo-loc-path" style="flex:1;min-width:0;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></span>
+        <button class="csh-action" id="addrepo-loc-change">Change…</button>
+        <button class="csh-action" id="addrepo-loc-reset" style="display:none;">Default</button>
+      </div>
+      <div id="addrepo-pane"></div>
+    `,
+  });
+
+  const pane = $('#addrepo-pane');
+  const tabs = $$('#modal-body .addrepo-tab');
+  const setActiveTab = (src) => tabs.forEach(t =>
+    t.classList.toggle('active', t.dataset.src === src));
+
+  // Shared clone location — applies to GitHub + URL clones (null = app default).
+  let cloneParentDir = null;
+  const renderLoc = () => {
+    $('#addrepo-loc-path').textContent = cloneParentDir || 'Default (~/dvagit-clones)';
+    $('#addrepo-loc-path').title = cloneParentDir || 'Default (~/dvagit-clones)';
+    $('#addrepo-loc-reset').style.display = cloneParentDir ? '' : 'none';
+  };
+  renderLoc();
+  $('#addrepo-loc-change').onclick = async () => {
+    const d = await window.api.pickCloneDir();
+    if (d) { cloneParentDir = d; renderLoc(); }
+  };
+  $('#addrepo-loc-reset').onclick = () => { cloneParentDir = null; renderLoc(); };
+
+  const doClone = async ({ url, dest = null, username = null, token = null }) => {
+    if (!url) { toast('URL required', 'error'); return; }
+    setStatus('Cloning...', 'busy');
+    toast('Cloning... this may take a minute', 'ok', 6000);
+    const r = await window.api.cloneRepo({ url, dest, parentDir: cloneParentDir, username, token });
+    if (r.ok) {
+      toast('Cloned successfully!', 'ok');
+      m.close();
+      await enterRepo(r);
+    } else {
+      toast(r.error, 'error');
+      setStatus('Idle', 'error');
+    }
+  };
+
+  // ---- GitHub pane: list the connected account's repos and clone on click ----
+  let _ghRepos = null;
+  async function renderGithub() {
+    pane.innerHTML = `<p style="color:var(--text-3);padding:6px;">Loading repositories…</p>`;
+    if (!_ghRepos) {
+      const res = await window.api.githubListRepos();
+      if (!$('#addrepo-pane')) return; // modal closed mid-fetch
+      if (!res || !res.ok) {
+        pane.innerHTML = `
+          <p style="color:var(--text-3);padding:6px;">${escapeHtml(res?.error || 'Could not load repositories.')}</p>
+          <p style="font-size:11px;color:var(--text-3);">Connect a GitHub account in <strong>Settings → Integrations</strong> (use “Login with GitHub”), then reopen this.</p>`;
+        return;
+      }
+      _ghRepos = res.repos || [];
+    }
+    pane.innerHTML = `
+      <input id="addrepo-gh-search" placeholder="Filter ${_ghRepos.length} repositories…" style="width:100%;margin-bottom:8px;" />
+      <div id="addrepo-gh-list" style="max-height:320px;overflow:auto;"></div>`;
+    const listEl = $('#addrepo-gh-list');
+    const draw = (q = '') => {
+      const ql = q.toLowerCase();
+      const rows = _ghRepos.filter(r =>
+        r.fullName.toLowerCase().includes(ql) ||
+        (r.description || '').toLowerCase().includes(ql));
+      listEl.innerHTML = rows.length === 0
+        ? `<p style="color:var(--text-3);padding:6px;">No matches.</p>`
+        : rows.map((r, i) => `
+          <div class="addrepo-gh-row" data-i="${_ghRepos.indexOf(r)}"
+               style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;cursor:pointer;">
+            <span style="flex:1;min-width:0;">
+              <span style="color:var(--text-1);">${escapeHtml(r.fullName)}</span>
+              ${r.private ? '<span style="font-size:10px;color:var(--text-3);border:1px solid var(--text-3);border-radius:3px;padding:0 4px;margin-left:6px;">private</span>' : ''}
+              ${r.description ? `<div style="font-size:11px;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(r.description)}</div>` : ''}
+            </span>
+            <button class="csh-action" data-act="clone">Clone</button>
+          </div>`).join('');
+      $$('#addrepo-gh-list .addrepo-gh-row').forEach(row => {
+        const repo = _ghRepos[parseInt(row.dataset.i, 10)];
+        row.querySelector('[data-act="clone"]').onclick = () => doClone({ url: repo.cloneUrl });
+      });
+    };
+    draw();
+    $('#addrepo-gh-search').oninput = (e) => draw(e.target.value.trim());
+  }
+
+  // ---- Clone URL pane: any git URL, with optional explicit credentials ----
+  function renderUrl() {
+    pane.innerHTML = `
+      <label>REMOTE URL</label>
+      <input id="addrepo-url" placeholder="https://github.com/user/repo.git" />
+      <label>DESTINATION (optional, full path — overrides “Clone into”)</label>
+      <input id="addrepo-dest" placeholder="Leave blank to use the location above" />
+      <label>USERNAME (optional)</label>
+      <input id="addrepo-user" placeholder="for private HTTPS repos" />
+      <label>TOKEN / PASSWORD (optional)</label>
+      <input id="addrepo-token" type="password" placeholder="leave blank to use a saved integration" />
+      <div style="font-size:11px;color:var(--text-3);margin:6px 0 10px;">
+        A saved integration token for the URL's host is applied automatically.
+        Credentials are used only for the clone and never stored in the repo.
+      </div>
+      <button class="csh-action" id="addrepo-url-go">CLONE</button>`;
+    $('#addrepo-url-go').onclick = () => doClone({
+      url: $('#addrepo-url').value.trim(),
+      dest: $('#addrepo-dest').value.trim() || null,
+      username: $('#addrepo-user').value.trim() || null,
+      token: $('#addrepo-token').value.trim() || null,
+    });
+  }
+
+  // ---- Local pane: open an existing folder on disk ----
+  function renderLocal() {
+    pane.innerHTML = `
+      <p style="color:var(--text-3);padding:6px 0;">Open an existing git repository already on this machine.</p>
+      <button class="csh-action" id="addrepo-local-go">Choose folder…</button>`;
+    $('#addrepo-local-go').onclick = async () => {
+      const p = await window.api.pickFolder();
+      if (p) { m.close(); await openRepoPath(p); }
+    };
+  }
+
+  const show = (src) => {
+    setActiveTab(src);
+    $('#addrepo-loc').style.display = src === 'local' ? 'none' : 'flex';
+    if (src === 'github') renderGithub();
+    else if (src === 'url') renderUrl();
+    else renderLocal();
+  };
+  tabs.forEach(t => { t.onclick = () => show(t.dataset.src); });
+  show('github');
+}
+
+$('#repo-tab-add').onclick = openAddRepoModal;
+
+// Home — show the welcome page without closing any open repos. Clicking a
+// repo tab (or Recent entry) returns to that repo.
+function showHome() {
+  $('#app').classList.add('hidden');
+  $('#welcome').classList.remove('hidden');
+  renderRecent();
+}
+$('#btn-home').onclick = showHome;

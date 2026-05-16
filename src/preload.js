@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld('api', {
 
   // repo
   pickFolder: () => ipcRenderer.invoke('repo:pickFolder'),
+  pickCloneDir: () => ipcRenderer.invoke('repo:pickCloneDir'),
   openRepo: (p) => ipcRenderer.invoke('repo:open', p),
   initRepo: (p) => ipcRenderer.invoke('repo:init', p),
   cloneRepo: (args) => ipcRenderer.invoke('repo:clone', args),
@@ -34,6 +35,7 @@ contextBridge.exposeInMainWorld('api', {
   checkout: (ref) => ipcRenderer.invoke('git:checkout', ref),
   createBranch: (name) => ipcRenderer.invoke('git:createBranch', name),
   deleteBranch: (args) => ipcRenderer.invoke('git:deleteBranch', args),
+  renameBranch: (args) => ipcRenderer.invoke('git:renameBranch', args),
   merge: (ref) => ipcRenderer.invoke('git:merge', ref),
   rebase: (onto) => ipcRenderer.invoke('git:rebase', onto),
   stash: (msg) => ipcRenderer.invoke('git:stash', msg),
@@ -155,6 +157,9 @@ contextBridge.exposeInMainWorld('api', {
   // integrations (GitHub / GitLab / GitLab self / Bitbucket)
   integrationsRead: () => ipcRenderer.invoke('integrations:read'),
   integrationsWrite: (data) => ipcRenderer.invoke('integrations:write', data),
+  githubDeviceStart: () => ipcRenderer.invoke('github:deviceStart'),
+  githubDevicePoll: (args) => ipcRenderer.invoke('github:devicePoll', args),
+  githubListRepos: () => ipcRenderer.invoke('github:listRepos'),
   pickImage: () => ipcRenderer.invoke('dialog:pickImage'),
   readAbsBinary: (abs) => ipcRenderer.invoke('file:readAbsBinary', abs),
   openExternal: (url) => ipcRenderer.invoke('shell:openExternal', url),
