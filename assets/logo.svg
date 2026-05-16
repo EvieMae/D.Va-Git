@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <defs>
+    <linearGradient id="ear" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#ffb7dd"/>
+    </linearGradient>
+    <linearGradient id="face" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#ffd6e8"/>
+    </linearGradient>
+    <radialGradient id="bg" cx="0.5" cy="0.45" r="0.6">
+      <stop offset="0%" stop-color="#3a2666"/>
+      <stop offset="100%" stop-color="#1a0d2e"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Hex/disc background -->
+  <circle cx="60" cy="60" r="56" fill="url(#bg)" stroke="#ff3b9a" stroke-width="2"/>
+  <circle cx="60" cy="60" r="56" fill="none" stroke="#00d9ff" stroke-width="0.5" opacity="0.6"/>
+
+  <!-- Bunny ears -->
+  <g transform="translate(60 56)">
+    <path d="M -15 -28 Q -19 -42 -14 -44 Q -9 -42 -11 -28 Z"
+          fill="url(#ear)" stroke="#ff3b9a" stroke-width="1.5"/>
+    <path d="M 11 -28 Q 9 -42 14 -44 Q 19 -42 15 -28 Z"
+          fill="url(#ear)" stroke="#ff3b9a" stroke-width="1.5"/>
+    <!-- inner ear blush -->
+    <path d="M -14 -32 Q -16 -38 -13 -39" stroke="#ff3b9a" stroke-width="1" fill="none" opacity="0.5"/>
+    <path d="M 14 -32 Q 16 -38 13 -39" stroke="#ff3b9a" stroke-width="1" fill="none" opacity="0.5"/>
+  </g>
+
+  <!-- Bunny face -->
+  <ellipse cx="60" cy="62" rx="26" ry="22" fill="url(#face)" stroke="#ff3b9a" stroke-width="1.8"/>
+
+  <!-- Cheek triangle marks (D.Va's signature) -->
+  <polygon points="44,64 36,67 38,72" fill="#ff3b9a"/>
+  <polygon points="76,64 84,67 82,72" fill="#ff3b9a"/>
+
+  <!-- Eyes -->
+  <ellipse cx="51" cy="58" rx="2.4" ry="3" fill="#1a0d2e"/>
+  <ellipse cx="69" cy="58" rx="2.4" ry="3" fill="#1a0d2e"/>
+  <!-- eye shine -->
+  <circle cx="51.7" cy="57" r="0.8" fill="#fff"/>
+  <circle cx="69.7" cy="57" r="0.8" fill="#fff"/>
+
+  <!-- Mouth -->
+  <path d="M 56 68 Q 60 72 64 68" stroke="#1a0d2e" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+
+  <!-- Small accent star (cyan) -->
+  <g transform="translate(98 28) rotate(15)" opacity="0.85">
+    <path d="M 0 -5 L 1.5 -1.5 L 5 -1 L 2 1.5 L 3 5 L 0 3 L -3 5 L -2 1.5 L -5 -1 L -1.5 -1.5 Z"
+          fill="#00d9ff"/>
+  </g>
+</svg>
