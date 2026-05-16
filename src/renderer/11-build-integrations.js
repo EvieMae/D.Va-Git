@@ -228,6 +228,7 @@ branchContextMenu = function (branch, x, y) {
       else toast(r.error, 'error');
     } },
     { separator: true },
+    { label: 'Rename...', icon: '✎', action: () => openRenameBranchModal(branch) },
     { label: 'Push branch', icon: '↑', action: async () => {
       const r = await window.api.push({ remote: state.settings.defaultRemote, branch });
       if (r.ok) toast(`Pushed ${branch}`, 'ok');
@@ -317,18 +318,7 @@ remoteContextMenu = function (remoteName, x, y) {
     { separator: true },
     { label: 'Manage all remotes...', icon: '☁', action: () => openRemotesManager() },
     { separator: true },
-    { label: 'Remove', icon: '✕', danger: true, action: async () => {
-      modal({
-        title: 'REMOVE REMOTE',
-        body: `<p>Remove remote <strong>${escapeHtml(remoteName)}</strong>? Local branches are not affected.</p>`,
-        okText: 'REMOVE',
-        onOk: async () => {
-          const r = await window.api.remoteRemove(remoteName);
-          if (r.ok) { toast(`Removed ${remoteName}`, 'ok'); await refreshAll(); }
-          else { toast(r.error, 'error'); return false; }
-        },
-      });
-    } },
+    { label: 'Remove', icon: '✕', danger: true, action: () => removeRemoteWithWarning(remoteName) },
   ];
   showContextMenu(x, y, items);
 };

@@ -536,15 +536,10 @@ openSettingsModal = function () {
       <div><div class="settings-label">People (custom avatars + Discord)</div><div class="settings-sub">One person, multiple emails, Discord auto-fetch.</div></div>
       <button class="csh-action" id="set-open-people">Manage…</button>
     </div>
-    <div class="settings-row">
-      <div><div class="settings-label">Build & install</div><div class="settings-sub">Produce an installer for D.Va Git.</div></div>
-      <button class="csh-action" id="set-open-build">Open Build…</button>
-    </div>
   `;
   body.appendChild(extra);
   $('#set-discord-clear').onclick = () => { $('#set-discord-token').value = ''; };
   $('#set-open-people').onclick = () => { $('#modal-backdrop').classList.add('hidden'); openPeopleManager(); };
-  $('#set-open-build').onclick = () => { $('#modal-backdrop').classList.add('hidden'); openBuildModal(); };
 
   // Wrap the OK handler to capture the token before the inner save runs
   const okBtn = $('#modal-ok');

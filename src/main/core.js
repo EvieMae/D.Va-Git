@@ -148,6 +148,20 @@ function loadIntegrations() {
   } catch { return []; }
 }
 
+// turn git's cryptic push/pull errors into something a human can act on
+function friendlyGitError(msg) {
+  const m = String(msg || '');
+  if (/src refspec .* does not match any/i.test(m))
+    return 'Nothing to push — that branch has no commits yet. Make a commit first.';
+  if (/Updates were rejected|non-fast-forward|fetch first/i.test(m))
+    return 'Push rejected — the remote has commits you don\'t have. Pull (or fetch) first, then push.';
+  if (/Authentication failed|could not read Username|could not read Password|Permission denied|403 Forbidden/i.test(m))
+    return 'Authentication failed for the remote. Add/refresh a token in Settings → Integrations.';
+  if (/Could not resolve host|unable to access|Could not read from remote repository/i.test(m))
+    return 'Can\'t reach the remote. Check the URL and your connection.';
+  return m;
+}
+
 module.exports = {
   S,
   recentReposFile, loadRecentRepos, saveRecentRepos, addRecentRepo,
@@ -156,4 +170,5 @@ module.exports = {
   LOG_SEP, LOG_REC, LOG_FMT, parseRawLog,
   buildTreeFromPaths, encryptToken, decryptToken,
   integrationsFile, loadIntegrations,
+  friendlyGitError,
 };

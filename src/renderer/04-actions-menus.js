@@ -78,10 +78,25 @@ $('#btn-pull').onclick = async () => {
   toast(r.error, 'error'); setStatus('Idle', 'error');
 };
 $('#btn-push').onclick = async () => {
-  setStatus('Pushing...', 'busy');
-  const r = await window.api.push({ remote: state.settings.defaultRemote });
-  if (r.ok) { toast('Pushed! ♥', 'ok'); await refreshAll(); }
-  else { toast(r.error, 'error'); setStatus('Idle', 'error'); }
+  const doPush = async (remote) => {
+    setStatus('Pushing...', 'busy');
+    const r = await window.api.push({ remote });
+    if (r.ok) {
+      toast(r.created ? `Created ${r.remote}/${r.branch} ♥` : 'Pushed! ♥', 'ok');
+      await refreshAll();
+    } else { toast(r.error, 'error'); setStatus('Idle', 'error'); }
+  };
+  // more than one remote? let the user pick which to push to
+  if ((state.remotes || []).length > 1) {
+    modal({
+      title: 'PUSH TO REMOTE',
+      body: `<label>REMOTE</label>${remoteSelectHtml('modal-quickpush-remote', state.settings.defaultRemote)}`,
+      okText: 'PUSH',
+      onOk: async () => { await doPush($('#modal-quickpush-remote').value || state.settings.defaultRemote); },
+    });
+  } else {
+    await doPush(state.settings.defaultRemote);
+  }
 };
 
 $('#btn-branch').onclick = () => openNewBranchModal();
@@ -363,6 +378,27 @@ function openRenameRemoteModal(remoteName) {
   });
 }
 
+function removeRemoteWithWarning(name) {
+  const r = (state.remotes || []).find(x => x.name === name);
+  const url = r?.refs?.push || r?.refs?.fetch || '';
+  modal({
+    title: `⚠ REMOVE REMOTE — ${name}`,
+    body: `
+      <p>This deletes the remote <strong>${escapeHtml(name)}</strong>${url ? ` (<code>${escapeHtml(url)}</code>)` : ''}.</p>
+      <p style="margin-top:8px;color:var(--text-3);">
+        Remote-tracking branches for it are removed and any local branches
+        tracking it lose their upstream. Your local commits and local branches
+        are <strong>not</strong> deleted. This can't be undone (you'd re-add it).
+      </p>`,
+    okText: 'REMOVE REMOTE',
+    onOk: async () => {
+      const res = await window.api.remoteRemove(name);
+      if (res.ok) { toast(`Removed remote ${name}`, 'ok'); await refreshAll(); }
+      else { toast(res.error, 'error'); return false; }
+    },
+  });
+}
+
 function openRemotesManager() {
   const rows = state.remotes.map(r => {
     const url = r.refs?.push || r.refs?.fetch || '';
@@ -403,18 +439,7 @@ function openRemotesManager() {
         const act = btn.dataset.act;
         if (act === 'edit') openEditRemoteModal(name);
         else if (act === 'rename') openRenameRemoteModal(name);
-        else if (act === 'remove') {
-          modal({
-            title: 'REMOVE REMOTE',
-            body: `<p>Remove remote <strong>${escapeHtml(name)}</strong>?</p>`,
-            okText: 'REMOVE',
-            onOk: async () => {
-              const r = await window.api.remoteRemove(name);
-              if (r.ok) { toast(`Removed ${name}`, 'ok'); await refreshAll(); }
-              else { toast(r.error, 'error'); return false; }
-            },
-          });
-        }
+        else if (act === 'remove') removeRemoteWithWarning(name);
       };
     });
   });

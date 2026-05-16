@@ -169,6 +169,18 @@ function escapeHtml(s) {
   }[c]));
 }
 
+// <select> of every configured remote (falls back to the saved default /
+// 'origin' so it's never empty). Reused anywhere a remote is chosen.
+function remoteSelectHtml(id, selected) {
+  const sel = selected || state.settings.defaultRemote || 'origin';
+  const names = (state.remotes || []).map(r => r.name).filter(Boolean);
+  if (!names.length) names.push('origin');
+  if (!names.includes(sel)) names.unshift(sel);
+  return `<select id="${id}">` + names.map(n =>
+    `<option value="${escapeHtml(n)}"${n === sel ? ' selected' : ''}>${escapeHtml(n)}</option>`
+  ).join('') + `</select>`;
+}
+
 function statusLetter(code) {
   if (!code) return '?';
   if (code === '??') return 'U';
@@ -407,9 +419,31 @@ async function renderRecent() {
   });
 }
 
-$('#welcome-open').onclick = async () => {
-  const p = await window.api.pickFolder();
-  if (p) await openRepoPath(p);
+$('#welcome-open').onclick = () => {
+  modal({
+    title: 'OPEN A REPOSITORY',
+    body: `
+      <label>REPOSITORY FOLDER</label>
+      <div style="display:flex;gap:6px;">
+        <input id="modal-open-path" placeholder="Paste a path or click Browse…" style="flex:1;" />
+        <button class="csh-action" id="modal-open-browse">Browse…</button>
+      </div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:6px;">
+        Pick the folder that contains the <code>.git</code> directory.
+      </div>
+    `,
+    okText: 'OPEN',
+    onOk: async () => {
+      const p = $('#modal-open-path').value.trim();
+      if (!p) { toast('Pick a repository folder', 'error'); return false; }
+      const ok = await openRepoPath(p);
+      if (!ok) return false;
+    },
+  });
+  $('#modal-open-browse').onclick = async () => {
+    const p = await window.api.pickFolder();
+    if (p) $('#modal-open-path').value = p;
+  };
 };
 
 $('#welcome-init').onclick = async () => {
@@ -471,17 +505,16 @@ async function openRepoPath(path) {
   const existing = state.openRepos.findIndex(r => r.path === path);
   if (existing >= 0) {
     await activateRepoTab(existing);
-    return;
+    return true;
   }
   setStatus('Opening...', 'busy');
   showLoading('Opening repo…', path);
   try {
     const r = await window.api.openRepo(path);
-    if (r.ok) await enterRepo(r);
-    else {
-      toast(r.error, 'error');
-      setStatus('Idle', 'error');
-    }
+    if (r.ok) { await enterRepo(r); return true; }
+    toast(r.error, 'error');
+    setStatus('Idle', 'error');
+    return false;
   } finally {
     hideLoading();
   }

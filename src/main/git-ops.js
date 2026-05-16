@@ -243,13 +243,38 @@ ipcMain.handle('git:commit', async (event, { message, amend }) => {
   } catch (e) { return { ok: false, error: e.message }; }
 });
 
-ipcMain.handle('git:push', async (event, { remote, branch, force } = {}) => {
+ipcMain.handle('git:push', async (event, { remote, branch, force, setUpstream } = {}) => {
   try {
     const g = core.requireRepo();
-    const opts = force ? ['--force'] : [];
-    const r = await g.push(remote || 'origin', branch, opts);
-    return { ok: true, data: core.plain(r) };
-  } catch (e) { return { ok: false, error: e.message }; }
+    const rem = remote || 'origin';
+
+    // default to the checked-out branch when none was given
+    let br = branch;
+    if (!br) { try { br = (await g.revparse(['--abbrev-ref', 'HEAD'])).trim(); } catch { br = ''; } }
+    if (!br || br === 'HEAD') {
+      return { ok: false, error: 'No branch is checked out (detached HEAD). Check out a branch first.' };
+    }
+
+    // the local branch must actually have commits, otherwise git says
+    // "src refspec <x> does not match any"
+    try {
+      await g.raw(['rev-parse', '--verify', '--quiet', `refs/heads/${br}`]);
+    } catch {
+      return { ok: false, error: `Branch "${br}" has no commits yet — make a commit before pushing.` };
+    }
+
+    // if the branch has no upstream the remote branch doesn't exist yet —
+    // push with --set-upstream so it gets created and tracked.
+    let hasUpstream = false;
+    try { await g.raw(['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}']); hasUpstream = true; } catch {}
+
+    const opts = [];
+    if (force) opts.push('--force');
+    if (setUpstream || !hasUpstream) opts.push('--set-upstream');
+
+    const r = await g.push(rem, br, opts);
+    return { ok: true, data: core.plain(r), created: !hasUpstream, branch: br, remote: rem };
+  } catch (e) { return { ok: false, error: core.friendlyGitError(e.message) }; }
 });
 
 ipcMain.handle('git:pull', async (event, { remote, branch } = {}) => {

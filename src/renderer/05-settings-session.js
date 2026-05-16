@@ -94,7 +94,7 @@ async function openSettingsModal() {
           <div class="settings-label">Default remote</div>
           <div class="settings-sub">Used by Fetch / Pull / Push buttons.</div>
         </div>
-        <input id="set-default-remote" value="${escapeHtml(state.settings.defaultRemote)}" />
+        ${remoteSelectHtml('set-default-remote', state.settings.defaultRemote)}
       </div>
       <div class="settings-row">
         <div>
@@ -545,7 +545,7 @@ function openPushOptionsModal() {
     title: 'PUSH OPTIONS',
     body: `
       <label>REMOTE</label>
-      <input id="modal-push-remote" value="${escapeHtml(state.settings.defaultRemote)}"/>
+      ${remoteSelectHtml('modal-push-remote', state.settings.defaultRemote)}
       <label>BRANCH (blank = current)</label>
       <input id="modal-push-branch" placeholder="${escapeHtml(state.status?.current || '')}"/>
       <label class="checkbox-row"><input type="checkbox" id="modal-push-upstream"/> Set upstream (-u)</label>

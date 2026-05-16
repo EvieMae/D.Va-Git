@@ -100,16 +100,34 @@ ipcMain.handle('git:tagPush', async (event, { remote, tag }) => {
 ipcMain.handle('git:pushOpts', async (event, { remote, branch, force, forceLease, setUpstream, pushTags }) => {
   try {
     const g = core.requireRepo();
+    const rem = remote || 'origin';
+
+    let br = branch;
+    if (!br && !pushTags) { try { br = (await g.revparse(['--abbrev-ref', 'HEAD'])).trim(); } catch { br = ''; } }
+    if (br === 'HEAD') br = '';
+
+    if (br) {
+      try {
+        await g.raw(['rev-parse', '--verify', '--quiet', `refs/heads/${br}`]);
+      } catch {
+        return { ok: false, error: `Branch "${br}" has no commits yet — make a commit before pushing.` };
+      }
+      // create + track the remote branch automatically when it doesn't exist
+      let hasUpstream = false;
+      try { await g.raw(['rev-parse', '--abbrev-ref', '--symbolic-full-name', `${br}@{u}`]); hasUpstream = true; } catch {}
+      if (!hasUpstream) setUpstream = true;
+    }
+
     const args = ['push'];
     if (force) args.push('--force');
     if (forceLease) args.push('--force-with-lease');
     if (setUpstream) args.push('-u');
     if (pushTags) args.push('--tags');
-    args.push(remote || 'origin');
-    if (branch) args.push(branch);
+    args.push(rem);
+    if (br) args.push(br);
     const r = await g.raw(args);
     return { ok: true, data: r };
-  } catch (e) { return { ok: false, error: e.message }; }
+  } catch (e) { return { ok: false, error: core.friendlyGitError(e.message) }; }
 });
 
 // ---------- Compare any two refs ----------
