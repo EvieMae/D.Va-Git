@@ -1,0 +1,376 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   CLOWN — hidden poker-scoring minigame, opened via Ctrl+CLOWN.
+   Original art (CSS/SVG only) and original joker designs — not derived
+   from any existing game's assets or specific values.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+#tab-clown {
+  position: relative;
+  overflow: hidden;
+  background: #0a0612;
+  color: #fff;
+  font-family: 'Consolas', 'JetBrains Mono', monospace;
+}
+#tab-clown.hidden { display: none; }
+
+.clown-shader {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  display: block;
+}
+
+.clown-ui {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  height: 100%;
+  padding: 14px 18px;
+  gap: 12px;
+  pointer-events: none;
+}
+.clown-ui > * { pointer-events: auto; }
+
+/* ─── HUD ─── */
+.clown-hud {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr) auto;
+  gap: 10px;
+  background: rgba(20, 8, 32, 0.78);
+  border: 1px solid rgba(255, 90, 168, 0.35);
+  border-radius: 10px;
+  padding: 10px 14px;
+  backdrop-filter: blur(6px);
+}
+.clown-hud-cell {
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+  color: #c7b8e0;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+.clown-hud-cell .v {
+  font-size: 18px;
+  color: #fff;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.clown-hud-cell.target .v { color: #ff84c4; }
+.clown-hud-cell.score .v  { color: #ffd166; }
+.clown-hud-cell.money .v  { color: #7ee8b0; }
+.clown-hud-close {
+  background: transparent;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.35);
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  align-self: center;
+}
+
+/* ─── Jokers row ─── */
+.clown-jokers {
+  display: flex;
+  gap: 10px;
+  min-height: 96px;
+  padding: 8px;
+  background: rgba(20, 8, 32, 0.55);
+  border: 1px dashed rgba(255, 90, 168, 0.30);
+  border-radius: 10px;
+}
+.clown-joker {
+  width: 80px;
+  height: 110px;
+  border-radius: 9px;
+  background: linear-gradient(160deg, #2a1340, #4a1d6a);
+  border: 1.5px solid #ffd166;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 4px 4px;
+  font-size: 9.5px;
+  text-align: center;
+  cursor: help;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.45), inset 0 0 12px rgba(255,255,255,0.05);
+  position: relative;
+}
+.clown-joker .face {
+  width: 56px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  filter: drop-shadow(0 2px 3px rgba(0,0,0,0.5));
+}
+.clown-joker .name {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #ffd166;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.clown-joker[data-empty] {
+  background: transparent;
+  border: 1.5px dashed rgba(255,255,255,0.15);
+  box-shadow: none;
+}
+.clown-joker .tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a0a28;
+  border: 1px solid #ff84c4;
+  color: #fff;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  width: 180px;
+  text-align: left;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  z-index: 5;
+}
+.clown-joker:hover .tip { opacity: 1; }
+
+/* ─── Main playfield ─── */
+.clown-field {
+  display: grid;
+  grid-template-rows: 1fr auto auto;
+  gap: 12px;
+  align-items: stretch;
+}
+.clown-blind-banner {
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #fff;
+  text-shadow: 0 2px 12px rgba(255, 90, 168, 0.6);
+}
+.clown-blind-banner .target {
+  color: #ff84c4;
+  font-size: 26px;
+}
+.clown-hand-summary {
+  text-align: center;
+  font-size: 13px;
+  color: #e0d6ff;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+.clown-hand-summary .pill {
+  background: rgba(255, 255, 255, 0.06);
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.clown-hand-summary .chips { color: #5ee0ff; }
+.clown-hand-summary .mult  { color: #ff5aa8; }
+.clown-hand-summary .total { color: #ffd166; font-size: 16px; font-weight: 700; }
+
+/* ─── Hand row ─── */
+.clown-hand {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px;
+  background: rgba(20, 8, 32, 0.5);
+  border: 1px solid rgba(94, 224, 255, 0.25);
+  border-radius: 10px;
+  min-height: 130px;
+}
+.clown-card {
+  width: 72px;
+  height: 104px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #fdfaf2 0%, #f4ead0 100%);
+  color: #1a0a28;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  padding: 6px 8px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.4);
+  user-select: none;
+  transition: transform 0.18s, box-shadow 0.18s;
+  position: relative;
+  border: 2px solid transparent;
+}
+.clown-card:hover { transform: translateY(-4px); }
+.clown-card.selected {
+  transform: translateY(-12px);
+  border-color: #ff84c4;
+  box-shadow: 0 6px 20px rgba(255, 132, 196, 0.55);
+}
+.clown-card .rank-top {
+  font-size: 16px;
+  line-height: 1;
+}
+.clown-card .pip {
+  font-size: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.clown-card .rank-bot {
+  font-size: 16px;
+  line-height: 1;
+  text-align: right;
+  transform: rotate(180deg);
+}
+.clown-card.suit-h, .clown-card.suit-d { color: #c9233f; }
+.clown-card.suit-s, .clown-card.suit-c { color: #1a0a28; }
+
+/* ─── Controls ─── */
+.clown-controls {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  padding-bottom: 4px;
+}
+.clown-btn {
+  padding: 10px 22px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: filter 0.12s, transform 0.08s;
+}
+.clown-btn:active { transform: translateY(1px); }
+.clown-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.clown-btn.play {
+  background: linear-gradient(180deg, #5ee0ff, #2da3c4);
+  color: #051825;
+  border-color: #1a4a55;
+}
+.clown-btn.discard {
+  background: linear-gradient(180deg, #ff5aa8, #b73770);
+  color: #fff;
+  border-color: #4a0e2a;
+}
+.clown-btn.shop {
+  background: linear-gradient(180deg, #ffd166, #c79627);
+  color: #2a1e00;
+  border-color: #5a4810;
+}
+.clown-btn:not(:disabled):hover { filter: brightness(1.12); }
+.clown-counter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: #c7b8e0;
+  padding: 0 8px;
+  align-self: center;
+}
+.clown-counter .n { color: #fff; font-size: 16px; font-weight: 700; }
+
+/* ─── Shop ─── */
+.clown-shop-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(8, 4, 16, 0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+.clown-shop-backdrop.hidden { display: none; }
+.clown-shop {
+  background: linear-gradient(160deg, #1a0a28, #2a1240);
+  border: 2px solid #ffd166;
+  border-radius: 14px;
+  padding: 20px 24px;
+  width: 560px;
+  max-width: 92vw;
+  box-shadow: 0 10px 50px rgba(0,0,0,0.7);
+}
+.clown-shop h2 {
+  margin: 0 0 4px;
+  font-size: 22px;
+  color: #ffd166;
+  letter-spacing: 2px;
+  text-align: center;
+}
+.clown-shop .subtitle {
+  text-align: center;
+  font-size: 11px;
+  color: #c7b8e0;
+  margin-bottom: 16px;
+  letter-spacing: 0.8px;
+}
+.clown-shop-items {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  min-height: 130px;
+}
+.clown-shop-item {
+  position: relative;
+  width: 100px;
+}
+.clown-shop-item .clown-joker { width: 100%; height: 130px; }
+.clown-shop-item .price {
+  position: absolute;
+  top: -8px;
+  right: -6px;
+  background: #ffd166;
+  color: #2a1e00;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 12px;
+  border: 2px solid #2a1240;
+}
+.clown-shop-item.sold { opacity: 0.25; pointer-events: none; }
+.clown-shop-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* ─── Run over screen ─── */
+.clown-gameover {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  background: rgba(8, 4, 16, 0.85);
+  z-index: 11;
+  text-align: center;
+}
+.clown-gameover.hidden { display: none; }
+.clown-gameover h1 {
+  font-size: 42px;
+  color: #ff5aa8;
+  letter-spacing: 6px;
+  margin: 0;
+  text-shadow: 0 2px 18px rgba(255, 90, 168, 0.5);
+}
+.clown-gameover .stat { color: #fff; font-size: 14px; }

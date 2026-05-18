@@ -1,0 +1,56 @@
+{
+  "name": "dvagit",
+  "version": "1.0.0",
+  "description": "MEKA-powered git client — Nerf this!",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --enable-logging",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win nsis"
+  },
+  "author": "Evie",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^32.0.0",
+    "electron-builder": "^25.0.0"
+  },
+  "dependencies": {
+    "simple-git": "^3.27.0"
+  },
+  "build": {
+    "appId": "com.dvagit.app",
+    "productName": "DVaGit",
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "icon-dva.png",
+      "icon-dva.ico"
+    ],
+    "asarUnpack": [
+      "assets/sfx/**/*"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "."
+    },
+    "win": {
+      "icon": "icon-dva.ico",
+      "target": [{ "target": "nsis", "arch": ["x64"] }]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "D.Va Git",
+      "installerIcon": "icon-dva.ico",
+      "uninstallerIcon": "icon-dva.ico",
+      "installerHeaderIcon": "icon-dva.ico",
+      "deleteAppDataOnUninstall": false,
+      "include": "installer.nsh"
+    }
+  }
+}

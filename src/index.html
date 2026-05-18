@@ -1,0 +1,469 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>D.Va Git — MEKA Squad Repository Manager</title>
+  <!-- styles split by area; link order == cascade order -->
+  <link rel="stylesheet" href="styles/01-base-layout.css" />
+  <link rel="stylesheet" href="styles/02-graph-editor.css" />
+  <link rel="stylesheet" href="styles/03-chrome-modals.css" />
+  <link rel="stylesheet" href="styles/04-widgets-themes.css" />
+  <link rel="stylesheet" href="styles/05-diff-conflict.css" />
+  <link rel="stylesheet" href="styles/06-loading-misc.css" />
+  <link rel="stylesheet" href="clown.css" />
+</head>
+<body>
+
+<!-- ───────────────────────── TITLE BAR ───────────────────────── -->
+<div class="titlebar">
+  <div class="titlebar-drag">
+    <div class="logo">
+      <img class="logo-mark" src="../icon-dva.png" alt="D.Va" draggable="false"/>
+      <div class="logo-text">
+        <div class="logo-main">D.Va Git</div>
+        <div class="logo-sub">MEKA-OS</div>
+      </div>
+    </div>
+
+    <div class="titlebar-center">
+      <button class="tb-btn" id="btn-home" title="Home">
+        <span class="tb-icon">⌂</span> Home
+      </button>
+      <div class="tb-divider"></div>
+      <button class="tb-btn" id="btn-fetch" title="Fetch from remote">
+        <span class="tb-icon">⟲</span> Fetch
+      </button>
+      <button class="tb-btn" id="btn-pull" title="Pull">
+        <span class="tb-icon">↓</span> Pull
+      </button>
+      <button class="tb-btn" id="btn-push" title="Push">
+        <span class="tb-icon">↑</span> Push
+      </button>
+      <div class="tb-divider"></div>
+      <button class="tb-btn" id="btn-branch" title="New branch">
+        <span class="tb-icon">⎇</span> Branch
+      </button>
+      <div class="tb-divider"></div>
+      <button class="tb-btn" id="btn-tag" title="Create tag (Ctrl+Shift+T)">
+        <span class="tb-icon">▼</span> Tag
+      </button>
+      <button class="tb-btn" id="btn-compare" title="Compare two refs">
+        <span class="tb-icon">⇄</span> Compare
+      </button>
+      <div class="tb-divider"></div>
+      <button class="tb-btn" id="btn-open-folder" title="Open in file explorer">
+        <span class="tb-icon">📁</span>
+      </button>
+      <button class="tb-btn" id="btn-open-terminal" title="Open terminal here">
+        <span class="tb-icon">▶_</span>
+      </button>
+      <button class="tb-btn" id="btn-open-vscode" title="Open in VS Code">
+        <span class="tb-icon">⌘</span>
+      </button>
+      <div class="tb-divider"></div>
+      <button class="tb-btn" id="btn-help" title="Help (Ctrl+/)">
+        <span class="tb-icon">?</span>
+      </button>
+      <button class="tb-btn" id="btn-settings" title="Settings (Ctrl+,)">
+        <span class="tb-icon">⚙</span> Settings
+      </button>
+    </div>
+
+    <div class="titlebar-right">
+      <div class="window-controls">
+        <button class="wc-btn" id="wc-min">─</button>
+        <button class="wc-btn" id="wc-max">▢</button>
+        <button class="wc-btn wc-close" id="wc-close">✕</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────────────────── REPO TABS ───────────────────────── -->
+<div class="repo-tabs hidden" id="repo-tabs">
+  <div class="repo-tabs-strip" id="repo-tabs-strip"></div>
+  <button class="repo-tab-add" id="repo-tab-add" title="Open another repository">+</button>
+</div>
+
+<!-- ───────────────────────── WELCOME / REPO PICKER ───────────────────────── -->
+<div class="welcome" id="welcome">
+  <div class="welcome-inner">
+    <img class="welcome-mark" src="../icon-dva.png" alt="" draggable="false"/>
+    <div class="welcome-title">
+      <div class="welcome-eyebrow">D.Va Git</div>
+      <h1>Pilot, suit up.</h1>
+      <p class="welcome-sub">Pick a repository to get started.</p>
+    </div>
+    <div class="welcome-actions">
+      <button class="big-btn" id="welcome-open">
+        <span class="big-btn-icon">▣</span>
+        <div class="big-btn-text">
+          <div class="big-btn-title">Open</div>
+          <div class="big-btn-sub">Open an existing local repository</div>
+        </div>
+      </button>
+      <button class="big-btn" id="welcome-init">
+        <span class="big-btn-icon">✦</span>
+        <div class="big-btn-text">
+          <div class="big-btn-title">Init</div>
+          <div class="big-btn-sub">Initialize git in a folder</div>
+        </div>
+      </button>
+      <button class="big-btn" id="welcome-clone">
+        <span class="big-btn-icon">⤓</span>
+        <div class="big-btn-text">
+          <div class="big-btn-title">Clone</div>
+          <div class="big-btn-sub">Clone from a remote URL</div>
+        </div>
+      </button>
+    </div>
+    <div class="welcome-recent">
+      <div class="welcome-recent-title">Recent</div>
+      <div class="welcome-recent-list" id="welcome-recent-list">
+        <div class="welcome-recent-empty">No recent repositories yet.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────────────────── MAIN APP ───────────────────────── -->
+<div class="app hidden" id="app">
+
+  <!-- LEFT SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-section sidebar-section-fixed">
+      <div class="sidebar-header">
+        <span class="sidebar-header-icon">♥</span>
+        <span>Workspace</span>
+      </div>
+      <div class="sidebar-item" id="nav-history">
+        <span class="si-dot"></span>
+        <span class="si-label">History</span>
+      </div>
+      <div class="sidebar-item" id="nav-changes">
+        <span class="si-dot"></span>
+        <span class="si-label">Changes</span>
+        <span class="si-badge" id="changes-badge">0</span>
+      </div>
+      <div class="sidebar-item" id="nav-files">
+        <span class="si-dot"></span>
+        <span class="si-label">Files</span>
+      </div>
+    </div>
+
+    <div class="sidebar-section sidebar-section-resizable" data-section="local">
+      <div class="sidebar-header">
+        <span class="sidebar-header-icon">⎇</span>
+        <span>Local branches</span>
+        <button class="header-mini-btn" id="add-branch-btn" title="New branch (Ctrl+B)">+</button>
+      </div>
+      <input class="sidebar-filter" id="filter-local" placeholder="Filter…" />
+      <div class="sidebar-list-scroll">
+        <div class="sidebar-list" id="branches-local"></div>
+      </div>
+      <div class="sidebar-section-resizer" data-resizer="local"></div>
+    </div>
+
+    <div class="sidebar-section sidebar-section-resizable" data-section="remote">
+      <div class="sidebar-header">
+        <span class="sidebar-header-icon">☁</span>
+        <span>Remotes</span>
+        <button class="header-mini-btn" id="add-remote-btn" title="Add remote">+</button>
+      </div>
+      <input class="sidebar-filter" id="filter-remote" placeholder="Filter…" />
+      <div class="sidebar-list-scroll">
+        <div class="sidebar-list" id="branches-remote"></div>
+      </div>
+      <div class="sidebar-section-resizer" data-resizer="remote"></div>
+    </div>
+
+    <div class="sidebar-section sidebar-section-resizable" data-section="stashes">
+      <div class="sidebar-header">
+        <span class="sidebar-header-icon">★</span>
+        <span>Stashes</span>
+        <button class="header-mini-btn" id="add-stash-btn" title="Stash staged">+</button>
+      </div>
+      <div class="sidebar-list-scroll">
+        <div class="sidebar-list" id="stash-list"></div>
+      </div>
+      <div class="sidebar-section-resizer" data-resizer="stashes"></div>
+    </div>
+
+    <div class="sidebar-section sidebar-section-resizable" data-section="tags">
+      <div class="sidebar-header">
+        <span class="sidebar-header-icon">▼</span>
+        <span>Tags</span>
+        <button class="header-mini-btn" id="add-tag-btn" title="New tag">+</button>
+      </div>
+      <input class="sidebar-filter" id="filter-tags" placeholder="Filter…" />
+      <div class="sidebar-list-scroll">
+        <div class="sidebar-list" id="tags-list"></div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- SIDEBAR / CENTER SPLITTER -->
+  <div class="pane-splitter" id="splitter-sidebar"></div>
+
+  <!-- CENTER: MAIN PAGE (HISTORY or FILE EDITOR or FILE TREE) -->
+  <main class="center">
+    <div class="center-header">
+      <div class="center-tabs" id="center-tabs">
+        <button class="center-tab active" data-tab="history">History</button>
+        <button class="center-tab" data-tab="files">Files</button>
+        <button class="center-tab hidden" data-tab="editor" id="editor-tab">
+          <span id="editor-tab-label">File</span>
+          <span class="tab-close" id="editor-tab-close" title="Close">✕</span>
+        </button>
+      </div>
+      <div class="center-header-right">
+        <span class="filter-pill" id="history-filter-pill"></span>
+        <span class="branch-pill" id="current-branch-pill">⎇ none</span>
+        <span class="sync-pill" id="sync-pill"></span>
+      </div>
+    </div>
+
+    <!-- HISTORY TAB -->
+    <div class="tab-pane" id="tab-history">
+      <div class="history-search-bar">
+        <input id="history-search" class="history-search-input" placeholder="Search commits — message, author, or SHA…" />
+        <select id="history-search-field" title="Search field">
+          <option value="any">Any</option>
+          <option value="message">Message</option>
+          <option value="author">Author</option>
+          <option value="hash">SHA</option>
+        </select>
+        <button class="csh-action" id="history-search-clear" title="Clear">✕</button>
+        <span class="history-count" id="history-count"></span>
+      </div>
+      <div class="graph-header">
+        <div class="gh-col gh-col-refs">REFS</div>
+        <div class="gh-col gh-col-graph">GRAPH</div>
+        <div class="gh-col gh-col-msg">MESSAGE</div>
+        <div class="gh-col gh-col-author">AUTHOR</div>
+        <div class="gh-col gh-col-date">DATE</div>
+        <div class="gh-col gh-col-hash">SHA</div>
+      </div>
+      <div class="graph-body" id="graph-body"></div>
+      <div class="history-console hidden" id="history-console">
+        <div class="hc-bar">
+          <span class="hc-title">CONSOLE</span>
+          <span class="hc-cwd" id="hc-cwd"></span>
+          <button class="hc-btn" id="hc-clear" title="Clear output">Clear</button>
+          <button class="hc-btn" id="hc-close" title="Hide console">✕</button>
+        </div>
+        <div class="hc-helper" id="hc-helper">
+          <button class="hc-chip" data-cmd="git status">status</button>
+          <button class="hc-chip" data-cmd="git log --oneline -20">log</button>
+          <button class="hc-chip" data-cmd="git fetch --all --prune">fetch</button>
+          <button class="hc-chip" data-cmd="git branch -a">branches</button>
+          <button class="hc-chip" data-cmd="git pull">pull</button>
+          <button class="hc-chip" data-cmd="git push">push</button>
+          <button class="hc-chip" data-cmd="git diff">diff</button>
+          <button class="hc-chip" data-cmd="git stash list">stashes</button>
+        </div>
+        <div class="hc-output" id="hc-output"></div>
+        <div class="hc-input-row">
+          <span class="hc-prompt">$</span>
+          <input id="hc-input" class="hc-input" autocomplete="off" spellcheck="false"
+                 placeholder="Run a command in this repo… (↑/↓ history, 'clear' to wipe)" />
+        </div>
+      </div>
+    </div>
+
+    <!-- FILES TAB -->
+    <div class="tab-pane hidden" id="tab-files">
+      <div class="files-header">
+        <input id="files-search" class="files-search-input" placeholder="Search files (recursive)…" />
+        <label class="files-toggle"><input type="checkbox" id="files-show-hidden" /> Hidden</label>
+        <label class="files-toggle" title="Only files tracked by Git (honors .gitignore)"><input type="checkbox" id="files-tracked-only" /> Tracked only</label>
+        <button class="csh-action" id="refresh-tree-btn">Refresh</button>
+      </div>
+      <div class="files-tree" id="files-tree"></div>
+    </div>
+
+    <!-- FILE EDITOR TAB -->
+    <div class="tab-pane hidden" id="tab-editor">
+      <div class="editor-bar">
+        <span class="editor-bar-path" id="editor-bar-path"></span>
+        <span class="lfs-badge hidden" id="editor-lfs-badge" title="Git LFS">LFS</span>
+        <span class="editor-bar-status" id="editor-bar-status"></span>
+        <span class="editor-bar-spacer"></span>
+        <div class="editor-mode-toggle" id="editor-mode-toggle">
+          <button class="mode-btn active" data-mode="edit" title="Plain text editor">Edit</button>
+          <button class="mode-btn" data-mode="file" title="Whole file with change highlights">File</button>
+          <button class="mode-btn" data-mode="hunks" title="Only changed regions with highlights">Hunks</button>
+        </div>
+        <button class="csh-action" id="editor-revert" title="Revert to disk">Revert</button>
+        <button class="csh-action editor-save" id="editor-save">Save</button>
+      </div>
+      <div class="editor-body" id="editor-body">
+        <textarea id="editor-textarea" class="editor-textarea" spellcheck="false" readonly></textarea>
+        <div class="editor-diff-view hidden" id="editor-diff-view"></div>
+        <div class="editor-media hidden" id="editor-media"></div>
+        <div class="editor-binary hidden" id="editor-binary"></div>
+      </div>
+    </div>
+  </main>
+
+  <!-- CENTER / RIGHT SPLITTER -->
+  <div class="pane-splitter" id="splitter-right"></div>
+
+  <!-- RIGHT PANE: DETAILS / CHANGES -->
+  <aside class="inspector" id="inspector">
+    <div class="inspector-header">
+      <div class="inspector-tabs">
+        <button class="inspector-tab active" data-rtab="details">Details</button>
+        <button class="inspector-tab" data-rtab="changes">
+          Changes
+          <span class="tab-badge" id="changes-tab-badge">0</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- DETAILS TAB BODY -->
+    <div class="inspector-pane" id="rtab-details">
+      <div class="inspector-body" id="inspector-body">
+        <div class="inspector-empty">
+          <div class="emp-icon">♥</div>
+          <div class="emp-text">Select a commit or file to inspect.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHANGES TAB BODY -->
+    <div class="inspector-pane hidden" id="rtab-changes">
+      <div class="changes-pane">
+          <div class="changes-section" data-section="unstaged">
+            <div class="changes-section-header" data-collapse-target="unstaged">
+              <span class="csh-icon csh-toggle">▾</span>
+              Unstaged
+              <span class="csh-bulk hidden" id="unstaged-bulk-info"></span>
+              <button class="csh-action" id="stage-selected-btn" style="display:none;">Stage selected</button>
+              <button class="csh-action" id="discard-selected-btn" style="display:none;">Discard selected</button>
+              <button class="csh-action" id="stage-all-btn">Stage all</button>
+              <button class="csh-action" id="discard-all-btn">Discard all</button>
+            </div>
+            <div class="changes-list" id="unstaged-list" data-zone="unstaged"></div>
+            <div class="changes-section-resizer" data-resizer="unstaged"></div>
+          </div>
+          <div class="changes-section" data-section="staged">
+            <div class="changes-section-header" data-collapse-target="staged">
+              <span class="csh-icon csh-toggle">▾</span>
+              Staged
+              <span class="csh-bulk hidden" id="staged-bulk-info"></span>
+              <button class="csh-action" id="unstage-selected-btn" style="display:none;">Unstage selected</button>
+              <button class="csh-action" id="unstage-all-btn">Unstage all</button>
+            </div>
+            <div class="changes-list" id="staged-list" data-zone="staged"></div>
+            <div class="changes-section-resizer" data-resizer="staged"></div>
+          </div>
+
+        <div class="commit-box" data-section="commit">
+          <div class="changes-section-resizer changes-section-resizer-top" data-resizer="commit"></div>
+          <div class="commit-box-header" data-collapse-target="commit">
+            <span class="csh-toggle commit-toggle">▾</span>
+            <span class="cbh-bunny">♥</span> Commit
+            <span class="commit-box-counter" id="commit-box-counter" title="Local commits not yet pushed"></span>
+            <span class="commit-template-picker">
+              <select id="commit-type-select" title="Conventional commit type">
+                <option value="">type…</option>
+                <option value="feat">feat</option>
+                <option value="fix">fix</option>
+                <option value="chore">chore</option>
+                <option value="docs">docs</option>
+                <option value="refactor">refactor</option>
+                <option value="perf">perf</option>
+                <option value="test">test</option>
+                <option value="build">build</option>
+                <option value="ci">ci</option>
+                <option value="style">style</option>
+                <option value="revert">revert</option>
+              </select>
+            </span>
+          </div>
+          <textarea id="commit-msg" class="commit-msg" placeholder="Summary"></textarea>
+          <div class="commit-msg-hint" id="commit-msg-hint"></div>
+          <textarea id="commit-desc" class="commit-desc" placeholder="Description (optional, wraps at 72)"></textarea>
+          <div class="commit-extras">
+            <label class="amend-check"><input type="checkbox" id="amend-check"/> Amend</label>
+            <label class="amend-check"><input type="checkbox" id="signoff-check"/> Sign-off</label>
+            <label class="amend-check"><input type="checkbox" id="coauthor-check"/> Co-author</label>
+            <button class="csh-action" id="reword-last-btn" title="Reword previous commit message">Reword last</button>
+          </div>
+          <div class="commit-coauthor-row hidden" id="commit-coauthor-row">
+            <input id="commit-coauthor" placeholder="Co-author Name &lt;email@host&gt;" />
+          </div>
+          <div class="commit-actions">
+            <button class="csh-action" id="btn-stash" title="Stash"><span style="color: var(--pink);">★</span> Stash</button>
+            <button class="csh-action" id="btn-pop" title="Pop stash"><span style="color: var(--pink);">☆</span> Pop</button>
+            <button class="commit-btn" id="commit-btn">Commit</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<!-- ───────────────────────── STATUS BAR ───────────────────────── -->
+<div class="statusbar">
+  <span class="sb-item"><span class="sb-icon">♥</span> <span id="sb-user">—</span></span>
+  <span class="sb-item"><span class="sb-icon">⎇</span> <span id="sb-branch">—</span></span>
+  <span class="sb-item"><span class="sb-icon">↑</span> <span id="sb-ahead">0</span></span>
+  <span class="sb-item"><span class="sb-icon">↓</span> <span id="sb-behind">0</span></span>
+  <span class="sb-spacer"></span>
+  <span class="sb-item sb-status" id="sb-status">Idle</span>
+  <span class="sb-item sb-tag">D.Va Git</span>
+</div>
+
+<!-- ───────────────────────── MODAL ───────────────────────── -->
+<div class="modal-backdrop hidden" id="modal-backdrop">
+  <div class="modal" id="modal">
+    <div class="modal-header" id="modal-title">Action</div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer">
+      <button class="modal-btn modal-cancel" id="modal-cancel">CANCEL</button>
+      <button class="modal-btn modal-ok" id="modal-ok">CONFIRM</button>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────────────────── LOADING / PROGRESS MODAL ───────────────────────── -->
+<div class="loading-modal hidden" id="loading-modal">
+  <div class="loading-content">
+    <div class="loading-gif-wrap">
+      <iframe class="loading-gif" id="loading-gif" frameborder="0" sandbox="allow-scripts allow-same-origin"></iframe>
+      <div class="loading-gif-fallback" id="loading-gif-fallback">♥</div>
+    </div>
+    <div class="loading-status" id="loading-status">Working…</div>
+    <div class="loading-sub" id="loading-sub"></div>
+    <div class="loading-spinner"><span></span><span></span><span></span></div>
+  </div>
+</div>
+
+<!-- ───────────────────────── CONTEXT MENU ───────────────────────── -->
+<div class="ctx-menu hidden" id="ctx-menu"></div>
+
+<!-- ───────────────────────── TOAST ───────────────────────── -->
+<div class="toast-host" id="toast-host"></div>
+
+<!-- renderer split by area; load order must stay sequential (shared scope + patches) -->
+<script src="renderer/01-core-state.js"></script>
+<script src="renderer/02-history-graph.js"></script>
+<script src="renderer/03-changes-editor.js"></script>
+<script src="renderer/04-actions-menus.js"></script>
+<script src="renderer/05-settings-session.js"></script>
+<script src="renderer/06-compare-history.js"></script>
+<script src="renderer/07-shortcuts-keys.js"></script>
+<script src="renderer/08-hunks-conflicts.js"></script>
+<script src="renderer/09-imagediff-rebase.js"></script>
+<script src="renderer/10-people-discord.js"></script>
+<script src="renderer/11-build-integrations.js"></script>
+<script src="renderer/12-loading-init.js"></script>
+<script src="clown.js"></script>
+<script src="venn.js"></script>
+<script src="doom.js"></script>
+<script src="fish.js"></script>
+</body>
+</html>
