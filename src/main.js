@@ -54,3 +54,4 @@ require('./main/history-people')(core);     // commit ops, tags, push, compare, 
 require('./main/integrations-build')(core); // integrations, discord, repo-state, submodules, gpg, build, rebase
 require('./main/gitignore')(core);          // .gitignore quick-add + template generator
 require('./main/hooks')(core);
+require('./main/lfs')(core);

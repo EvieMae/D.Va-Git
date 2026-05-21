@@ -195,4 +195,9 @@ contextBridge.exposeInMainWorld('api', {
   hooksList: () => ipcRenderer.invoke('hooks:list'),
   hooksRead: (args) => ipcRenderer.invoke('hooks:read', args),
   hooksWrite: (args) => ipcRenderer.invoke('hooks:write', args),
+  // LFS management panel
+  lfsPatterns: () => ipcRenderer.invoke('lfs:patterns'),
+  lfsPull: () => ipcRenderer.invoke('lfs:pull'),
+  lfsFsck: () => ipcRenderer.invoke('lfs:fsck'),
+  lfsTrack: (args) => ipcRenderer.invoke('lfs:track', args),
 });
