@@ -5,7 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 
 async function openLfsModal() {
-  if (!state.currentRepoPath) {
+  if (!state.repo) {
     toast('Open a repository first', 'warn');
     return;
   }

@@ -73,7 +73,7 @@ function renderRepoStatsBody(d) {
 }
 
 async function openRepoStatsModal() {
-  if (!state || !state.currentRepoPath) {
+  if (!state || !state.repo) {
     if (typeof toast === 'function') toast('No repository opened');
     return;
   }
