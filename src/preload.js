@@ -185,4 +185,8 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('build:log', handler);
     return () => ipcRenderer.removeListener('build:log', handler);
   },
+
+  // scratchpad (per-repo notes)
+  scratchpadRead: () => ipcRenderer.invoke('scratchpad:read'),
+  scratchpadWrite: (args) => ipcRenderer.invoke('scratchpad:write', args),
 });
