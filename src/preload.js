@@ -185,4 +185,7 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('build:log', handler);
     return () => ipcRenderer.removeListener('build:log', handler);
   },
+
+  // repo stats panel
+  repoStatsRead: () => ipcRenderer.invoke('repostats:read'),
 });
