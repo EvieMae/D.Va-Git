@@ -185,4 +185,10 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('build:log', handler);
     return () => ipcRenderer.removeListener('build:log', handler);
   },
+
+  // LFS management panel
+  lfsPatterns: () => ipcRenderer.invoke('lfs:patterns'),
+  lfsPull: () => ipcRenderer.invoke('lfs:pull'),
+  lfsFsck: () => ipcRenderer.invoke('lfs:fsck'),
+  lfsTrack: (args) => ipcRenderer.invoke('lfs:track', args),
 });
