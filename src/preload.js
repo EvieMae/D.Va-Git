@@ -185,4 +185,9 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('build:log', handler);
     return () => ipcRenderer.removeListener('build:log', handler);
   },
+
+  // hooks
+  hooksList: () => ipcRenderer.invoke('hooks:list'),
+  hooksRead: (args) => ipcRenderer.invoke('hooks:read', args),
+  hooksWrite: (args) => ipcRenderer.invoke('hooks:write', args),
 });
