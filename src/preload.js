@@ -185,4 +185,10 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('build:log', handler);
     return () => ipcRenderer.removeListener('build:log', handler);
   },
+
+  // gitignore tools
+  gitignoreRead: () => ipcRenderer.invoke('gitignore:read'),
+  gitignoreAppendLine: (line) => ipcRenderer.invoke('gitignore:appendLine', { line }),
+  gitignoreWriteTemplate: (name, mode) => ipcRenderer.invoke('gitignore:writeTemplate', { name, mode }),
+  gitignoreTemplates: () => ipcRenderer.invoke('gitignore:templates'),
 });
