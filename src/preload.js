@@ -200,4 +200,6 @@ contextBridge.exposeInMainWorld('api', {
   lfsPull: () => ipcRenderer.invoke('lfs:pull'),
   lfsFsck: () => ipcRenderer.invoke('lfs:fsck'),
   lfsTrack: (args) => ipcRenderer.invoke('lfs:track', args),
+  // repo stats panel
+  repoStatsRead: () => ipcRenderer.invoke('repostats:read'),
 });

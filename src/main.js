@@ -55,3 +55,4 @@ require('./main/integrations-build')(core); // integrations, discord, repo-state
 require('./main/gitignore')(core);          // .gitignore quick-add + template generator
 require('./main/hooks')(core);
 require('./main/lfs')(core);
+require('./main/repostats')(core);          // repo stats panel (object count, contributors, files)
