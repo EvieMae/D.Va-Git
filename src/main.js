@@ -53,3 +53,4 @@ require('./main/repo-io')(core);            // remotes, file io, stash, log, tre
 require('./main/history-people')(core);     // commit ops, tags, push, compare, history, blame, tools, people
 require('./main/integrations-build')(core); // integrations, discord, repo-state, submodules, gpg, build, rebase
 require('./main/gitignore')(core);          // .gitignore quick-add + template generator
+require('./main/hooks')(core);

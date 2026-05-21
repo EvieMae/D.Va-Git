@@ -191,4 +191,8 @@ contextBridge.exposeInMainWorld('api', {
   gitignoreAppendLine: (line) => ipcRenderer.invoke('gitignore:appendLine', { line }),
   gitignoreWriteTemplate: (name, mode) => ipcRenderer.invoke('gitignore:writeTemplate', { name, mode }),
   gitignoreTemplates: () => ipcRenderer.invoke('gitignore:templates'),
+  // hooks
+  hooksList: () => ipcRenderer.invoke('hooks:list'),
+  hooksRead: (args) => ipcRenderer.invoke('hooks:read', args),
+  hooksWrite: (args) => ipcRenderer.invoke('hooks:write', args),
 });
