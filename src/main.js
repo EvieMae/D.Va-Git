@@ -56,3 +56,4 @@ require('./main/gitignore')(core);          // .gitignore quick-add + template g
 require('./main/hooks')(core);
 require('./main/lfs')(core);
 require('./main/repostats')(core);          // repo stats panel (object count, contributors, files)
+require('./main/scratchpad')(core);         // per-repo scratchpad notes panel

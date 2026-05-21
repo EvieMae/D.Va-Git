@@ -202,4 +202,7 @@ contextBridge.exposeInMainWorld('api', {
   lfsTrack: (args) => ipcRenderer.invoke('lfs:track', args),
   // repo stats panel
   repoStatsRead: () => ipcRenderer.invoke('repostats:read'),
+  // scratchpad (per-repo notes)
+  scratchpadRead: () => ipcRenderer.invoke('scratchpad:read'),
+  scratchpadWrite: (args) => ipcRenderer.invoke('scratchpad:write', args),
 });
