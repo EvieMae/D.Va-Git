@@ -52,3 +52,8 @@ require('./main/git-ops')(core);            // window, repo open/init/clone, cor
 require('./main/repo-io')(core);            // remotes, file io, stash, log, tree, settings, session
 require('./main/history-people')(core);     // commit ops, tags, push, compare, history, blame, tools, people
 require('./main/integrations-build')(core); // integrations, discord, repo-state, submodules, gpg, build, rebase
+require('./main/gitignore')(core);          // .gitignore quick-add + template generator
+require('./main/hooks')(core);
+require('./main/lfs')(core);
+require('./main/repostats')(core);          // repo stats panel (object count, contributors, files)
+require('./main/scratchpad')(core);         // per-repo scratchpad notes panel

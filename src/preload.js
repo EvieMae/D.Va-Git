@@ -185,4 +185,24 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('build:log', handler);
     return () => ipcRenderer.removeListener('build:log', handler);
   },
+
+  // gitignore tools
+  gitignoreRead: () => ipcRenderer.invoke('gitignore:read'),
+  gitignoreAppendLine: (line) => ipcRenderer.invoke('gitignore:appendLine', { line }),
+  gitignoreWriteTemplate: (name, mode) => ipcRenderer.invoke('gitignore:writeTemplate', { name, mode }),
+  gitignoreTemplates: () => ipcRenderer.invoke('gitignore:templates'),
+  // hooks
+  hooksList: () => ipcRenderer.invoke('hooks:list'),
+  hooksRead: (args) => ipcRenderer.invoke('hooks:read', args),
+  hooksWrite: (args) => ipcRenderer.invoke('hooks:write', args),
+  // LFS management panel
+  lfsPatterns: () => ipcRenderer.invoke('lfs:patterns'),
+  lfsPull: () => ipcRenderer.invoke('lfs:pull'),
+  lfsFsck: () => ipcRenderer.invoke('lfs:fsck'),
+  lfsTrack: (args) => ipcRenderer.invoke('lfs:track', args),
+  // repo stats panel
+  repoStatsRead: () => ipcRenderer.invoke('repostats:read'),
+  // scratchpad (per-repo notes)
+  scratchpadRead: () => ipcRenderer.invoke('scratchpad:read'),
+  scratchpadWrite: (args) => ipcRenderer.invoke('scratchpad:write', args),
 });
