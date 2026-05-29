@@ -142,6 +142,197 @@ body[data-theme="light"] {
   --shadow-glow: 0 0 0 1px rgba(197, 35, 122, 0.35);
 }
 
+/* CS 1.6 — olive chassis with gold accents and beveled chrome, inspired by cs16.css */
+@font-face {
+  font-family: 'ArialPixel';
+  src: url('https://cdn.jsdelivr.net/gh/ekmas/cs16.css@main/ArialPixel.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+body[data-theme="cs16"] {
+  --bg:           #4a5942;
+  --bg-2:         #3e4637;
+  --bg-3:         #353c2f;
+  --bg-elev:      #5a6a50;
+  --bg-hover:     rgba(196, 181, 80, 0.10);
+  --bg-active:    rgba(196, 181, 80, 0.20);
+  --line:         rgba(140, 146, 132, 0.35);
+  --line-strong:  #8c9284;
+  --line-pink:    #c4b550;
+  --pink:         #c4b550;
+  --pink-soft:    #dcc966;
+  --pink-deep:    #958831;
+  --cyan:         #a0aa95;
+  --cyan-deep:    #75806f;
+  --text:         #ffffff;
+  --text-2:       #dedfd6;
+  --text-3:       #a0aa95;
+  --text-mute:    #75806f;
+  --ok:           #92c272;
+  --warn:         #dcc966;
+  --err:          #c45a3a;
+  --lane-1: #c4b550;  --lane-2: #c45a3a;  --lane-3: #5a8fc4;  --lane-4: #92c272;
+  --lane-5: #dcc966;  --lane-6: #8c9284;  --lane-7: #b58aff;  --lane-8: #d8ded3;
+  /* Sharp 1px outline instead of soft glow */
+  --shadow-glow: 0 0 0 1px #c4b550;
+  --shadow-1: 0 0 0 1px #292c21;
+  --shadow-2: 0 0 0 1px #292c21, 4px 4px 0 0 rgba(0,0,0,0.4);
+  /* Sharp corners — CS UI is all square */
+  --r-sm: 0;
+  --r-md: 0;
+  --r-lg: 0;
+  /* Pixel font */
+  font-family: 'ArialPixel', 'Tahoma', system-ui, sans-serif;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
+  font-smooth: never;
+}
+
+/* Beveled (raised) borders: light top/left, dark bottom/right. */
+body[data-theme="cs16"] .csh-action,
+body[data-theme="cs16"] button.btn,
+body[data-theme="cs16"] .empty-state-cta,
+body[data-theme="cs16"] .repo-tab,
+body[data-theme="cs16"] .avatar-source-item {
+  border: 1px solid #8c9284;
+  border-color: #8c9284 #292c21 #292c21 #8c9284;
+  border-radius: 0;
+  background: var(--bg);
+  color: #fff;
+  box-shadow: none;
+}
+body[data-theme="cs16"] .csh-action:active,
+body[data-theme="cs16"] button.btn:active,
+body[data-theme="cs16"] .empty-state-cta:active {
+  border-color: #292c21 #8c9284 #8c9284 #292c21;
+}
+body[data-theme="cs16"] .csh-action:hover,
+body[data-theme="cs16"] button.btn:hover,
+body[data-theme="cs16"] .empty-state-cta:hover {
+  color: var(--pink);
+  background: var(--bg);
+}
+body[data-theme="cs16"] .csh-action:focus-visible,
+body[data-theme="cs16"] button.btn:focus-visible {
+  outline: 1px solid #000;
+  outline-offset: 0;
+}
+
+/* Sunken (inset) borders: dark top/left, light bottom/right — for inputs. */
+body[data-theme="cs16"] input[type="text"],
+body[data-theme="cs16"] input[type="search"],
+body[data-theme="cs16"] input[type="email"],
+body[data-theme="cs16"] input[type="password"],
+body[data-theme="cs16"] input:not([type]),
+body[data-theme="cs16"] textarea,
+body[data-theme="cs16"] select,
+body[data-theme="cs16"] .sidebar-filter,
+body[data-theme="cs16"] .history-search-input,
+body[data-theme="cs16"] .files-search-input,
+body[data-theme="cs16"] .palette-input,
+body[data-theme="cs16"] .find-bar input,
+body[data-theme="cs16"] .commit-coauthor-row input {
+  border: 1px solid;
+  border-color: #292c21 #8c9284 #8c9284 #292c21 !important;
+  border-radius: 0 !important;
+  background: var(--bg-2);
+  color: var(--text-2);
+}
+body[data-theme="cs16"] input:focus,
+body[data-theme="cs16"] textarea:focus,
+body[data-theme="cs16"] select:focus,
+body[data-theme="cs16"] .sidebar-filter:focus,
+body[data-theme="cs16"] .history-search-input:focus,
+body[data-theme="cs16"] .files-search-input:focus,
+body[data-theme="cs16"] .find-bar input:focus {
+  border-color: #292c21 #8c9284 #8c9284 #292c21 !important;
+  outline: 1px solid #000;
+}
+
+/* Text selection uses the accent — like CS menu highlights */
+body[data-theme="cs16"] ::selection { background: #958831; color: #fff; }
+body[data-theme="cs16"] ::-moz-selection { background: #958831; color: #fff; }
+
+/* Chunky beveled scrollbars */
+body[data-theme="cs16"] ::-webkit-scrollbar { width: 16px; height: 16px; }
+body[data-theme="cs16"] ::-webkit-scrollbar-track {
+  background: #5a6a50;
+  border: 1px solid #292c21;
+}
+body[data-theme="cs16"] ::-webkit-scrollbar-thumb {
+  background: var(--bg);
+  border: 1px solid;
+  border-color: #8c9284 #292c21 #292c21 #8c9284;
+}
+body[data-theme="cs16"] ::-webkit-scrollbar-thumb:active {
+  border-color: #292c21 #8c9284 #8c9284 #292c21;
+}
+body[data-theme="cs16"] ::-webkit-scrollbar-corner { background: #5a6a50; }
+
+/* Sidebar / panel / chrome: keep borders sharp and use the dark/light contrast */
+body[data-theme="cs16"] .sidebar,
+body[data-theme="cs16"] .repo-tabs,
+body[data-theme="cs16"] .toolbar,
+body[data-theme="cs16"] .pane-splitter {
+  border-color: #292c21;
+}
+
+/* Tabs — raised when inactive, "rising out" when active (gold label) */
+body[data-theme="cs16"] .repo-tab.active {
+  background: var(--bg);
+  color: var(--pink);
+  border-color: #8c9284 #292c21 transparent #8c9284;
+}
+
+/* Headers / section titles in the CS gold */
+body[data-theme="cs16"] .sidebar-section-header,
+body[data-theme="cs16"] .csh-title,
+body[data-theme="cs16"] .empty-state-title {
+  color: var(--pink);
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+/* Pills / counters: square, beveled */
+body[data-theme="cs16"] .commit-box-counter,
+body[data-theme="cs16"] .repo-tab-counts {
+  border-radius: 0;
+  border: 1px solid #292c21;
+  background: var(--bg-2);
+  color: var(--pink);
+}
+
+/* Modals / palette / dialogs: outset bevel */
+body[data-theme="cs16"] .palette,
+body[data-theme="cs16"] .modal,
+body[data-theme="cs16"] .dialog,
+body[data-theme="cs16"] .menu,
+body[data-theme="cs16"] .ctx-menu {
+  border: 1px solid;
+  border-color: #8c9284 #292c21 #292c21 #8c9284;
+  border-radius: 0;
+  background: var(--bg);
+  box-shadow: 4px 4px 0 0 rgba(0,0,0,0.4);
+}
+
+/* Checkboxes / radios use the gold accent — matches CS 1.6 menus */
+body[data-theme="cs16"] input[type="checkbox"],
+body[data-theme="cs16"] input[type="radio"] {
+  accent-color: #c4b550;
+}
+
+/* Monospace blocks (code, blame, diff) keep a readable font */
+body[data-theme="cs16"] .blame-view,
+body[data-theme="cs16"] .reflog-list,
+body[data-theme="cs16"] .editor-line-gutter,
+body[data-theme="cs16"] .editor-edit-wrap .editor-textarea,
+body[data-theme="cs16"] .editor-highlight-overlay {
+  font-family: 'Consolas', 'JetBrains Mono', monospace;
+  -webkit-font-smoothing: antialiased;
+}
+
 /* ─────────────────── Splitter grip glyph ─────────────────── */
 .pane-splitter {
   position: relative;

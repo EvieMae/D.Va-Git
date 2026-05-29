@@ -167,6 +167,7 @@ const THEMES = [
   { id: 'moonlight', name: 'Moonlight' },
   { id: 'oled',      name: 'OLED Black' },
   { id: 'light',     name: 'Blinding Light' },
+  { id: 'cs16',      name: 'CS 1.6' },
 ];
 function applyTheme() {
   // legacy values: 'dark' was the old default purple, 'light' kept as-is

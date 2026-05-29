@@ -133,6 +133,8 @@ contextBridge.exposeInMainWorld('api', {
   rebaseContinue: () => ipcRenderer.invoke('git:rebaseContinue'),
   cherryPickAbort: () => ipcRenderer.invoke('git:cherryPickAbort'),
   cherryPickContinue: () => ipcRenderer.invoke('git:cherryPickContinue'),
+  checkoutSide: (args) => ipcRenderer.invoke('git:checkoutSide', args),
+  readSquashMsg: () => ipcRenderer.invoke('git:readSquashMsg'),
 
   // file-at-commit (text + binary for image diff)
   treeAt: (args) => ipcRenderer.invoke('git:treeAt', args),

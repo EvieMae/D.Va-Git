@@ -226,6 +226,7 @@ branchContextMenu = function (branch, x, y) {
       } else toast(r.error, 'error');
     } },
     { label: 'Merge into current (squash)', icon: '⊞', action: () => squashMergeInto(branch) },
+    { label: 'Merge into current as single commit…', icon: '◉', action: () => mergeBranchAsSingleCommit(branch) },
     { label: 'Rebase current onto this', icon: '⤴', action: async () => {
       const r = await window.api.rebase(branch);
       if (r.ok) { toast(`Rebased onto ${branch}`, 'ok'); await refreshAll(); }

@@ -593,10 +593,21 @@ function openCommandPalette() {
     { id: 'worktrees',  label: 'Worktrees…',              icon: '🌿', action: () => openWorktreesModal() },
     { id: 'conflicts',  label: 'Resolve conflicts…',      icon: '⚠', action: () => openConflictsModal() },
   ];
-  // Add branches dynamically
-  (state.branches.local?.all || []).forEach(b => items.push({
-    id: 'cb-' + b, label: 'Checkout ' + b, icon: '⎇', sub: 'branch', action: () => switchBranch(b),
-  }));
+  // Add branches dynamically — checkout, plus "merge as single commit" for
+  // every branch other than the current one.
+  const current = state.status?.current;
+  (state.branches.local?.all || []).forEach(b => {
+    items.push({ id: 'cb-' + b, label: 'Checkout ' + b, icon: '⎇', sub: 'branch', action: () => switchBranch(b) });
+    if (b !== current) {
+      items.push({
+        id: 'msc-' + b,
+        label: `Merge ${b} as single commit…`,
+        icon: '◉',
+        sub: 'squash → 1 commit',
+        action: () => mergeBranchAsSingleCommit(b),
+      });
+    }
+  });
 
   const root = document.createElement('div');
   root.className = 'palette';

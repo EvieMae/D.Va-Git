@@ -299,6 +299,52 @@ ipcMain.handle('git:cherryPickContinue', async () => {
   catch (e) { return { ok: false, error: e.message }; }
 });
 
+// Read .git/SQUASH_MSG after a `merge --squash` so the renderer can show the
+// proposed commit message (git's auto-generated "Squashed commit of …" block).
+// Returns '' if there's no pending squash.
+ipcMain.handle('git:readSquashMsg', async () => {
+  try {
+    if (!S.currentRepoPath) throw new Error('No repository opened');
+    let gitDir = path.join(S.currentRepoPath, '.git');
+    // Worktree support — .git might be a file pointing at the real gitdir.
+    if (fs.existsSync(gitDir) && fs.statSync(gitDir).isFile()) {
+      const c = fs.readFileSync(gitDir, 'utf8').trim();
+      const m = c.match(/^gitdir:\s*(.+)$/);
+      if (m) gitDir = path.resolve(S.currentRepoPath, m[1]);
+    }
+    const f = path.join(gitDir, 'SQUASH_MSG');
+    if (fs.existsSync(f)) return { ok: true, data: fs.readFileSync(f, 'utf8') };
+    return { ok: true, data: '' };
+  } catch (e) { return { ok: false, error: e.message }; }
+});
+
+// Resolve a path-level conflict by taking one side wholesale. Used by the
+// conflict resolver's structural-conflict fallback (no markers in the file).
+// Goes through simple-git's `raw` so argv is passed directly to git — no
+// cmd.exe quoting games.
+ipcMain.handle('git:checkoutSide', async (event, { side, file } = {}) => {
+  try {
+    if (side !== 'ours' && side !== 'theirs') throw new Error(`Invalid side "${side}"`);
+    if (!file) throw new Error('File path required');
+    const g = core.requireRepo();
+    try {
+      await g.raw(['checkout', `--${side}`, '--', file]);
+    } catch (e) {
+      // modify/delete (or rename/delete) conflict: the chosen side has no
+      // version in the index because that side deleted the file. Git reports
+      // "path '…' does not have our/their version". Taking that side means the
+      // file should be removed, so resolve by staging the deletion.
+      if (/does not have (our|their) version/i.test(e.message || '')) {
+        await g.raw(['rm', '-f', '--', file]);
+        return { ok: true };
+      }
+      throw e;
+    }
+    await g.raw(['add', '--', file]);
+    return { ok: true };
+  } catch (e) { return { ok: false, error: e.message }; }
+});
+
 // ---------- File content at a given commit (text + binary) ----------
 ipcMain.handle('git:showText', async (event, { ref, file }) => {
   try {

@@ -401,6 +401,16 @@ function openBranchDropModal(source, target, targetSource) {
             </div>
           </div>
         </button>
+        <button class="modal-choice-btn" id="drop-squash-single">
+          <div class="mcb-icon">◉</div>
+          <div>
+            <div class="mcb-title">Merge as a single commit</div>
+            <div class="mcb-sub">
+              Squashes every commit on <strong>${escapeHtml(source)}</strong> into one new commit on
+              <strong>${escapeHtml(target)}</strong> — no merge ancestry, linear history.
+            </div>
+          </div>
+        </button>
         <button class="modal-choice-btn" id="drop-rebase">
           <div class="mcb-icon">⤴</div>
           <div>
@@ -418,6 +428,10 @@ function openBranchDropModal(source, target, targetSource) {
   $('#drop-merge').onclick = async () => {
     $('#modal-backdrop').classList.add('hidden');
     await mergeBranchInto(source, target);
+  };
+  $('#drop-squash-single').onclick = async () => {
+    $('#modal-backdrop').classList.add('hidden');
+    await mergeBranchAsSingleCommit(source, target);
   };
   $('#drop-rebase').onclick = async () => {
     $('#modal-backdrop').classList.add('hidden');
@@ -470,6 +484,87 @@ async function squashMergeInto(source) {
     toast(r.error, 'error');
     setStatus('Idle', 'error');
   }
+}
+
+// One-shot squash-merge: runs `merge --squash`, then opens a commit-message
+// dialog seeded from .git/SQUASH_MSG, then creates the commit — producing a
+// single new commit on the current branch that contains every change from
+// <source>. If `target` differs from the current branch we check it out first.
+// On conflicts we hand off to the resolver and stop before committing; the
+// user finishes the squash by clicking "Continue" once everything is resolved
+// (which fires `git commit --no-edit`, so SQUASH_MSG is still honoured).
+async function mergeBranchAsSingleCommit(source, target) {
+  const current = state.status?.current || null;
+  target = target || current;
+  if (!target) { toast('No branch checked out — pick a target first', 'error'); return; }
+  if (source === target) { toast(`${source} is already the current branch`, 'warn'); return; }
+
+  if (target !== current) {
+    setStatus('Checking out target…', 'busy');
+    const co = await window.api.checkout(target);
+    if (!co.ok) { toast(`Checkout failed: ${co.error}`, 'error'); setStatus('Idle', 'error'); return; }
+  }
+
+  setStatus('Squashing…', 'busy');
+  const r = await window.api.mergeOpts({ ref: source, squash: true });
+  await refreshAll();
+
+  if (!r.ok) {
+    if (_isConflictError(r.error) || (state.status?.conflicted?.length || 0) > 0) {
+      // Conflicts — the resolver will pop. We can't auto-commit safely from
+      // here, so leave the user to finish via the resolver's Continue button.
+      toast(`Squash of ${source} hit conflicts — resolve them, then Continue to commit.`, 'warn', 5000);
+    } else {
+      toast(r.error, 'error');
+      setStatus('Idle', 'error');
+    }
+    return;
+  }
+
+  // Pull git's auto-generated commit message ("Squashed commit of the
+  // following: …") from .git/SQUASH_MSG to seed the dialog.
+  let defaultMsg = `Squashed merge of ${source} into ${target}`;
+  try {
+    const sq = await window.api.readSquashMsg();
+    if (sq.ok && sq.data && sq.data.trim()) defaultMsg = sq.data;
+  } catch {}
+
+  setStatus('Ready');
+  modal({
+    title: `COMMIT SQUASHED MERGE`,
+    body: `
+      <p style="color: var(--text-3); margin-bottom: 8px;">
+        Changes from <strong>${escapeHtml(source)}</strong> are staged on <strong>${escapeHtml(target)}</strong>.
+        Confirm to create a single commit, or cancel to leave them staged and commit manually.
+      </p>
+      <label>COMMIT MESSAGE</label>
+      <textarea id="modal-squash-msg" style="width: 100%; min-height: 200px; font-family: 'Consolas', 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.5;"></textarea>
+      <div style="font-size: 11px; color: var(--text-3); margin-top: 6px;">
+        Seeded from <code>.git/SQUASH_MSG</code> — git's list of squashed commits. Edit freely.
+      </div>
+    `,
+    okText: 'COMMIT',
+    cancelText: 'Leave staged',
+    onOk: async () => {
+      const msg = ($('#modal-squash-msg').value || '').trim();
+      if (!msg) { toast('Commit message required', 'warn'); return false; }
+      setStatus('Committing…', 'busy');
+      const c = await window.api.commit({ message: msg });
+      if (c.ok) {
+        toast(`Squashed ${source} into one commit on ${target} ♥`, 'ok');
+        await refreshAll();
+      } else {
+        toast(c.error, 'error');
+        setStatus('Idle', 'error');
+        return false;
+      }
+    },
+  });
+  $('#modal-squash-msg').value = defaultMsg;
+  $('#modal-squash-msg').focus();
+  // Park the cursor at the start so the user sees the leading "Squashed
+  // commit of …" rather than the very end of the auto-generated message.
+  $('#modal-squash-msg').setSelectionRange(0, 0);
 }
 
 async function rebaseBranchOnto(source, target) {
@@ -596,13 +691,6 @@ function renderGraphRow(row, refsByHash) {
       linesInner += `<path d="M ${x1} ${yMid} C ${x1} ${yMid + 10}, ${x2} ${h - 10}, ${x2} ${h}" stroke="${laneColor(pl)}" stroke-width="2.5" fill="none"/>`;
     } else {
       linesInner += `<line x1="${cx(lane)}" y1="${yMid}" x2="${cx(lane)}" y2="${h}" stroke="${laneColor(lane)}" stroke-width="2.5"/>`;
-    }
-  });
-
-  // little dots on lanes that pass through this row
-  activeLanes.forEach((hash, i) => {
-    if (hash && incoming[i] && i !== lane) {
-      nodesInner += `<circle cx="${cx(i)}" cy="${yMid}" r="3.5" fill="${laneColor(i)}" stroke="#1a1224" stroke-width="1"/>`;
     }
   });
 

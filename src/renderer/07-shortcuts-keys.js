@@ -119,7 +119,7 @@ const _orig_editorTabClose = $('#editor-tab-close').onclick;
 $('#editor-tab-close').onclick = (e) => {
   // If a conflict resolver is up, tear it down explicitly so the DOM doesn't
   // linger even if the original close handler bails on a confirm prompt etc.
-  if (state.conflictResolver) {
+  if (state.conflictResolver || state.conflictsView?.open) {
     if (typeof closeConflictResolver === 'function') closeConflictResolver();
   }
   if (_orig_editorTabClose) _orig_editorTabClose(e);
@@ -692,13 +692,23 @@ applyEditorMode = async function (mode) {
   $('#editor-diff-view').classList.remove('hidden');
   $('#editor-diff-view').innerHTML = renderDiffToolbar() + '<div style="padding: 16px; color: var(--text-3);">Loading diff…</div>';
 
-  const staged = state.selectedFileStaged === true && state.selectedFile === state.editorFile.path;
-  const r = await window.api.diffOpts({
-    file: state.editorFile.path,
-    staged,
-    ignoreAll: state.settings.diffIgnoreWS,
-    context: state.settings.diffContext,
-  });
+  // Files opened at a specific commit need that commit's diff, not the
+  // working-tree diff — which is empty for an already-committed file.
+  let r;
+  if (state.editorFile.atCommit) {
+    r = await window.api.fileDiffAtCommit({
+      hash: state.editorFile.atCommit,
+      file: state.editorFile.path,
+    });
+  } else {
+    const staged = state.selectedFileStaged === true && state.selectedFile === state.editorFile.path;
+    r = await window.api.diffOpts({
+      file: state.editorFile.path,
+      staged,
+      ignoreAll: state.settings.diffIgnoreWS,
+      context: state.settings.diffContext,
+    });
+  }
   const diffText = r.ok ? (r.data || '') : '';
   if (mode === 'file') renderWholeFileDiff(state.editorFile.content, diffText);
   else if (mode === 'hunks') renderHunksOnly(diffText);
